@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,7 +19,6 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -29,17 +27,22 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+  })
 
   async function onSubmit(data: LoginForm) {
     try {
       setLoading(true)
       setError(null)
+
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({
+
+      const { data: loginData, error: authError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
+
       if (authError) {
         if (authError.message.includes('Invalid login credentials')) {
           setError('Email o contraseña incorrectos. Verificá tus datos e intentá nuevamente.')
@@ -48,9 +51,15 @@ export default function LoginPage() {
         }
         return
       }
-      router.push('/dashboard')
-      router.refresh()
-    } catch {
+
+      if (!loginData.session) {
+        setError('No se pudo crear la sesión. Intentá nuevamente.')
+        return
+      }
+
+      window.location.href = '/dashboard'
+    } catch (err) {
+      console.error('LOGIN ERROR:', err)
       setError('Ocurrió un error inesperado. Intentá nuevamente.')
     } finally {
       setLoading(false)
@@ -59,9 +68,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      {/* Card */}
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="bg-primary-800 px-8 py-8 text-center">
           <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-7 h-7 text-white" />
@@ -70,7 +77,6 @@ export default function LoginPage() {
           <p className="text-primary-200 text-sm mt-1.5">Accedé a tu simulador educativo</p>
         </div>
 
-        {/* Form */}
         <div className="px-8 py-8">
           {error && (
             <Alert variant="error" className="mb-5" dismissible>
@@ -128,7 +134,7 @@ export default function LoginPage() {
 
           <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
             <p className="text-xs text-amber-700 text-center font-medium">
-              🎓 Este es un simulador educativo. Los datos son ficticios y no tienen validez legal.
+              Este es un simulador educativo. Los datos son ficticios y no tienen validez legal.
             </p>
           </div>
         </div>
