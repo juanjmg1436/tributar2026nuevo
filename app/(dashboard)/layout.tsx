@@ -15,6 +15,7 @@ import { useNotifications } from '@/hooks/useNotifications'
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
   const { user, profile, loading } = useUser()
   const { progress } = useProgress(user?.id ?? null)
   const { unreadCount } = useNotifications(user?.id ?? null)
@@ -32,40 +33,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router])
 
-  if (loading) return <PageSpinner />
-  if (!user) return null
+  if (loading) {
+    return <PageSpinner />
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <SimuladorBanner />
       <Sidebar
-        progress={progress}
-        onSignOut={handleSignOut}
-        userName={profile?.full_name}
-      />
-      <MobileNav
-        isOpen={mobileNavOpen}
+        mobileOpen={mobileNavOpen}
         onClose={() => setMobileNavOpen(false)}
         progress={progress}
-        userName={profile?.full_name}
-        onSignOut={handleSignOut}
+        unreadCount={unreadCount}
       />
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         <Header
+          onOpenMobile={() => setMobileNavOpen(true)}
+          progress={progress}
           userName={profile?.full_name}
-          unreadNotifications={unreadCount}
-          onMenuToggle={() => setMobileNavOpen(true)}
           onSignOut={handleSignOut}
         />
-        <main className="min-h-[calc(100vh-100px)]">
-          {children}
-        </main>
-        <footer className="px-4 lg:px-6 py-4 border-t border-slate-200 bg-white">
-          <p className="text-xs text-slate-400 text-center">
-            TRIBUT.AR — Simulador Didáctico Fiscal Argentino — NO OFICIAL — SIN VALIDEZ LEGAL/FISCAL — DATOS DEMO
-          </p>
-        </footer>
+        <main>{children}</main>
       </div>
+      <MobileNav
+        onOpenMenu={() => setMobileNavOpen(true)}
+        onSignOut={handleSignOut}
+      />
     </div>
   )
 }
