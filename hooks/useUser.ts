@@ -33,9 +33,7 @@ export function useUser(): UseUserReturn {
         error: authError,
       } = await supabase.auth.getUser()
 
-      if (authError) {
-        throw authError
-      }
+      if (authError) throw authError
 
       setUser(authUser)
 
@@ -51,9 +49,7 @@ export function useUser(): UseUserReturn {
         .eq('id', authUser.id)
         .maybeSingle()
 
-      if (profileError) {
-        throw profileError
-      }
+      if (profileError) throw profileError
 
       setProfile(profileData ?? null)
 
@@ -63,9 +59,7 @@ export function useUser(): UseUserReturn {
         .eq('user_id', authUser.id)
         .maybeSingle()
 
-      if (taxpayerError) {
-        throw taxpayerError
-      }
+      if (taxpayerError) throw taxpayerError
 
       setTaxpayerProfile(taxpayerData ?? null)
     } catch (err) {
