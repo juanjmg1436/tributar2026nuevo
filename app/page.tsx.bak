@@ -1,0 +1,314 @@
+import Link from 'next/link'
+import { SimuladorBanner } from '@/components/layout/SimuladorBanner'
+import {
+  BookOpen, Shield, ArrowRight, GraduationCap, FileText,
+  CreditCard, Building2, Receipt, CheckCircle2, Users,
+  BarChart3, Lock, Info
+} from 'lucide-react'
+
+export default function LandingPage() {
+  const features = [
+    {
+      icon: <FileText className="w-6 h-6 text-primary-600" />,
+      title: 'Alta registral simulada',
+      description: 'Completá el proceso de inscripción tributaria por pasos, aprendiendo cada etapa del circuito.',
+    },
+    {
+      icon: <Building2 className="w-6 h-6 text-primary-600" />,
+      title: 'Regímenes tributarios',
+      description: 'Entendé las diferencias entre Monotributo, Régimen General y Autónomos con ejemplos prácticos.',
+    },
+    {
+      icon: <Receipt className="w-6 h-6 text-primary-600" />,
+      title: 'Emisión de comprobantes',
+      description: 'Emití facturas simuladas tipos A, B y C, y aprendé cuándo se usa cada tipo.',
+    },
+    {
+      icon: <CreditCard className="w-6 h-6 text-primary-600" />,
+      title: 'Estado de cuenta fiscal',
+      description: 'Visualizá tus obligaciones fiscales, vencimientos y estados: pendiente, presentado, pagado.',
+    },
+    {
+      icon: <Lock className="w-6 h-6 text-primary-600" />,
+      title: 'Progresión por etapas',
+      description: 'Los módulos se habilitan de forma secuencial, replicando el orden lógico de los trámites reales.',
+    },
+    {
+      icon: <BarChart3 className="w-6 h-6 text-primary-600" />,
+      title: 'Domicilio Fiscal Electrónico',
+      description: 'Aprendé qué es el domicilio fiscal electrónico y cómo funciona la comunicación oficial.',
+    },
+  ]
+
+  const taxConcepts = [
+    {
+      title: 'Impuestos',
+      icon: '🏛️',
+      color: 'bg-blue-50 border-blue-200',
+      titleColor: 'text-blue-800',
+      description: 'Son obligaciones de pago al Estado que no generan una contraprestación directa para quien paga. El dinero recaudado se destina a financiar servicios públicos generales como educación, salud e infraestructura.',
+      examples: 'IVA, Ganancias, Bienes Personales',
+    },
+    {
+      title: 'Tasas',
+      icon: '🔧',
+      color: 'bg-emerald-50 border-emerald-200',
+      titleColor: 'text-emerald-800',
+      description: 'Son pagos obligatorios por el uso de un servicio específico prestado por el Estado o un municipio. A diferencia de los impuestos, existe una contraprestación directa y divisible.',
+      examples: 'Tasa de alumbrado, barrido y limpieza; tasas municipales',
+    },
+    {
+      title: 'Contribuciones',
+      icon: '👥',
+      color: 'bg-amber-50 border-amber-200',
+      titleColor: 'text-amber-800',
+      description: 'Son obligaciones de pago relacionadas con un beneficio particular que recibe el contribuyente o un grupo específico. Incluyen aportes a la seguridad social y sistemas previsionales.',
+      examples: 'Aportes jubilatorios, contribuciones a obra social, ART',
+    },
+  ]
+
+  const regimes = [
+    {
+      name: 'Monotributo',
+      badge: 'Simplificado',
+      badgeColor: 'bg-emerald-100 text-emerald-700',
+      description: 'Régimen unificado que agrupa el pago de IVA, Ganancias y aportes previsionales en una cuota fija mensual. Ideal para pequeños contribuyentes.',
+      who: 'Personas humanas con ingresos dentro de los límites establecidos',
+    },
+    {
+      name: 'Régimen General',
+      badge: 'Estándar',
+      badgeColor: 'bg-blue-100 text-blue-700',
+      description: 'Sistema tributario completo donde cada impuesto se liquida por separado. IVA mensual, Ganancias anual con anticipos. Para contribuyentes que superan los límites del monotributo.',
+      who: 'Personas humanas y jurídicas en general',
+    },
+    {
+      name: 'Autónomos',
+      badge: 'Independiente',
+      badgeColor: 'bg-purple-100 text-purple-700',
+      description: 'Régimen de aportes para trabajadores independientes que no están en relación de dependencia. Se usa en combinación con el Régimen General.',
+      who: 'Trabajadores por cuenta propia que superan el monotributo',
+    },
+  ]
+
+  return (
+    <div className="min-h-screen bg-white">
+      <SimuladorBanner />
+
+      {/* Navbar */}
+      <nav className="border-b border-slate-200 px-4 lg:px-8 py-4 sticky top-[42px] bg-white/95 backdrop-blur-sm z-30">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-primary-700 rounded-xl flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <span className="font-bold text-primary-800 text-xl">TRIBUT.AR</span>
+              <span className="hidden sm:inline ml-2 text-xs text-slate-500 font-medium">Simulador Educativo</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-slate-700 hover:text-primary-700 transition-colors"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm font-semibold bg-primary-700 text-white px-4 py-2 rounded-lg hover:bg-primary-800 transition-colors"
+            >
+              Comenzar gratis
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 text-white px-4 py-20 lg:py-28">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-white/15 text-white/90 text-sm font-medium px-4 py-2 rounded-full mb-8 border border-white/20">
+            <GraduationCap className="w-4 h-4" />
+            Herramienta educativa para estudiantes
+          </div>
+          <h1 className="text-4xl lg:text-6xl font-extrabold mb-6 leading-tight">
+            Aprendé cómo funciona
+            <span className="block text-accent-400">el sistema tributario</span>
+            argentino
+          </h1>
+          <p className="text-xl text-primary-100 mb-10 max-w-2xl mx-auto leading-relaxed">
+            TRIBUT.AR es un simulador didáctico que te permite recorrer el proceso registral y fiscal de un contribuyente, entender los regímenes impositivos y emitir comprobantes. Sin datos reales. Sin riesgos.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 bg-white text-primary-800 font-bold px-8 py-4 rounded-xl hover:bg-primary-50 transition-colors text-lg shadow-lg"
+            >
+              Comenzar simulación
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 border-2 border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition-colors text-lg"
+            >
+              Ya tengo cuenta
+            </Link>
+          </div>
+          <div className="mt-10 flex items-center justify-center gap-2 text-amber-300 text-sm font-medium">
+            <Shield className="w-4 h-4" />
+            Simulador educativo — Sin validez legal — Datos ficticios
+          </div>
+        </div>
+      </section>
+
+      {/* Disclaimer card */}
+      <section className="px-4 py-8 bg-amber-50 border-b border-amber-200">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex gap-3 items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-amber-200 rounded-lg flex items-center justify-center mt-0.5">
+              <Info className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-800 mb-1">Aviso importante — Simulador Educativo</p>
+              <p className="text-sm text-amber-700">
+                TRIBUT.AR es una herramienta de aprendizaje inspirada en la lógica de los organismos tributarios argentinos. No es un sistema oficial, no tiene ningún tipo de vínculo con AFIP, ARCA ni ningún organismo del Estado. Todos los datos son ficticios. No tiene validez fiscal, legal ni impositiva. Está diseñada exclusivamente para fines educativos y pedagógicos.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* What you can learn */}
+      <section className="px-4 py-20 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+              ¿Qué se puede aprender aquí?
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+              TRIBUT.AR te lleva por el recorrido completo de un contribuyente, de principio a fin.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, i) => (
+              <div key={i} className="p-6 rounded-2xl border border-slate-200 hover:border-primary-300 hover:shadow-md transition-all">
+                <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4">
+                  {feature.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">{feature.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Conceptos: Impuestos, Tasas, Contribuciones */}
+      <section className="px-4 py-20 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+              Conceptos clave del sistema tributario
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+              Antes de comenzar, entendé las diferencias básicas.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {taxConcepts.map((concept, i) => (
+              <div key={i} className={`rounded-2xl border p-7 ${concept.color}`}>
+                <div className="text-4xl mb-4">{concept.icon}</div>
+                <h3 className={`text-xl font-bold mb-3 ${concept.titleColor}`}>{concept.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-4">{concept.description}</p>
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ejemplos</p>
+                  <p className="text-sm text-slate-600 font-medium">{concept.examples}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Regímenes */}
+      <section className="px-4 py-20 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+              Los regímenes tributarios
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+              Según tu nivel de ingresos y tipo de actividad, pertenecés a uno u otro régimen.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {regimes.map((regime, i) => (
+              <div key={i} className="border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-all">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-bold text-slate-800">{regime.name}</h3>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${regime.badgeColor}`}>
+                        {regime.badge}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2">{regime.description}</p>
+                    <p className="text-xs text-slate-400"><span className="font-medium">Aplica a:</span> {regime.who}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="px-4 py-20 bg-gradient-to-br from-primary-800 to-primary-900 text-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">
+            ¿Listo para comenzar?
+          </h2>
+          <p className="text-xl text-primary-200 mb-8">
+            Registrate gratis y empezá a explorar el simulador educativo.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center gap-2 bg-white text-primary-800 font-bold px-8 py-4 rounded-xl hover:bg-primary-50 transition-colors text-lg"
+            >
+              Registrarme gratis
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 border-2 border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition-colors text-lg"
+            >
+              Iniciar sesión
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="px-4 py-8 bg-slate-900 text-slate-400">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-primary-700 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-white">TRIBUT.AR</span>
+            </div>
+            <p className="text-xs text-center">
+              SIMULADOR DIDÁCTICO — NO OFICIAL — SIN VALIDEZ FISCAL/LEGAL — DATOS DEMO
+            </p>
+            <div className="flex gap-4 text-sm">
+              <Link href="/login" className="hover:text-white transition-colors">Ingresar</Link>
+              <Link href="/register" className="hover:text-white transition-colors">Registrarse</Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
