@@ -28,11 +28,20 @@ export function useUser(): UseUserReturn {
       setLoading(true)
       setError(null)
 
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError) {
+        throw authError
+      }
+
       setUser(authUser)
 
       if (!authUser) {
-        setLoading(false)
+        setProfile(null)
+        setTaxpayerProfile(null)
         return
       }
 
@@ -40,19 +49,27 @@ export function useUser(): UseUserReturn {
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single()
+        .maybeSingle()
 
-      if (profileError) throw profileError
-      setProfile(profileData)
+      if (profileError) {
+        throw profileError
+      }
 
-      const { data: taxpayerData } = await supabase
+      setProfile(profileData ?? null)
+
+      const { data: taxpayerData, error: taxpayerError } = await supabase
         .from('taxpayer_profiles')
         .select('*')
         .eq('user_id', authUser.id)
-        .single()
+        .maybeSingle()
 
-      setTaxpayerProfile(taxpayerData || null)
+      if (taxpayerError) {
+        throw taxpayerError
+      }
+
+      setTaxpayerProfile(taxpayerData ?? null)
     } catch (err) {
+      console.error('useUser error:', err)
       setError(err instanceof Error ? err.message : 'Error al cargar usuario')
     } finally {
       setLoading(false)
@@ -62,12 +79,21 @@ export function useUser(): UseUserReturn {
   useEffect(() => {
     fetchData()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
       fetchData()
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  return { user, profile, taxpayerProfile, loading, error, refresh: fetchData }
+  return {
+    user,
+    profile,
+    taxpayerProfile,
+    loading,
+    error,
+    refresh: fetchData,
+  }
 }
