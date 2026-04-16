@@ -32,7 +32,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
   })
 
@@ -40,9 +44,10 @@ export default function RegisterPage() {
     try {
       setLoading(true)
       setError(null)
+
       const supabase = createClient()
 
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -55,7 +60,7 @@ export default function RegisterPage() {
       })
 
       if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
+        if (signUpError.message.toLowerCase().includes('already registered')) {
           setError('Este email ya está registrado. Intentá iniciar sesión.')
         } else {
           setError(signUpError.message)
@@ -63,8 +68,15 @@ export default function RegisterPage() {
         return
       }
 
+      if (signUpData?.session) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
       setSuccess(true)
-    } catch {
+    } catch (err) {
+      console.error('REGISTER ERROR:', err)
       setError('Ocurrió un error al registrarte. Intentá nuevamente.')
     } finally {
       setLoading(false)
@@ -98,7 +110,6 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-md">
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="bg-primary-800 px-8 py-8 text-center">
           <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-7 h-7 text-white" />
@@ -107,7 +118,6 @@ export default function RegisterPage() {
           <p className="text-primary-200 text-sm mt-1.5">Comenzá a usar el simulador educativo</p>
         </div>
 
-        {/* Form */}
         <div className="px-8 py-8">
           {error && (
             <Alert variant="error" className="mb-5" dismissible>
@@ -124,6 +134,7 @@ export default function RegisterPage() {
               error={errors.fullName?.message}
               required
             />
+
             <Input
               {...register('email')}
               id="email"
@@ -134,6 +145,7 @@ export default function RegisterPage() {
               required
               autoComplete="email"
             />
+
             <Input
               {...register('institution')}
               id="institution"
@@ -141,6 +153,7 @@ export default function RegisterPage() {
               placeholder="Ej: Instituto Nacional de Comercio"
               helpText="Nombre de tu escuela, instituto o curso"
             />
+
             <div className="relative">
               <Input
                 {...register('password')}
@@ -160,6 +173,7 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
             <Input
               {...register('confirmPassword')}
               id="confirmPassword"
