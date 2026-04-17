@@ -106,7 +106,9 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   error={errors.password?.message}
                   required
-                  autoComplete="current-password"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
                 />
                 <button
                   type="button"
