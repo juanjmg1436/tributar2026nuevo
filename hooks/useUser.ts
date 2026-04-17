@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, TaxpayerProfile } from '@/types'
 import type { User } from '@supabase/supabase-js'
@@ -21,50 +21,51 @@ export function useUser(): UseUserReturn {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  // Una sola instancia — no recrear en cada render
+  const supabase = useRef(createClient()).current
+
+  async function fetchProfiles(authUser: User) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .maybeSingle()
+
+    if (profileError) throw profileError
+    setProfile(profileData ?? null)
+
+    const { data: taxpayerData, error: taxpayerError } = await supabase
+      .from('taxpayer_profiles')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .maybeSingle()
+
+    if (taxpayerError) throw taxpayerError
+    setTaxpayerProfile(taxpayerData ?? null)
+  }
 
   async function fetchData() {
     try {
       setLoading(true)
       setError(null)
 
-      const {
-        data: { user: authUser },
-        error: authError,
-      } = await supabase.auth.getUser()
+      // getSession() lee cookies sin hacer llamada de red.
+      // El middleware ya verificó el token en el servidor — aquí alcanza con la sesión local.
+      const { data: { session } } = await supabase.auth.getSession()
 
-      if (authError) throw authError
-
-      setUser(authUser)
-
-      if (!authUser) {
+      if (!session?.user) {
+        setUser(null)
         setProfile(null)
         setTaxpayerProfile(null)
         return
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .maybeSingle()
-
-      if (profileError) throw profileError
-
-      setProfile(profileData ?? null)
-
-      const { data: taxpayerData, error: taxpayerError } = await supabase
-        .from('taxpayer_profiles')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .maybeSingle()
-
-      if (taxpayerError) throw taxpayerError
-
-      setTaxpayerProfile(taxpayerData ?? null)
+      setUser(session.user)
+      await fetchProfiles(session.user)
     } catch (err) {
-      console.error('useUser error:', err)
-      setError(err instanceof Error ? err.message : 'Error al cargar usuario')
+      console.error('[useUser] error:', err)
+      // No limpiar user: puede ser error de red en profiles, no falla de auth
+      setError(err instanceof Error ? err.message : 'Error al cargar datos')
     } finally {
       setLoading(false)
     }
@@ -73,21 +74,31 @@ export function useUser(): UseUserReturn {
   useEffect(() => {
     fetchData()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      fetchData()
-    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setProfile(null)
+          setTaxpayerProfile(null)
+          setLoading(false)
+          return
+        }
+        if (session?.user) {
+          setUser(session.user)
+          setLoading(true)
+          try {
+            await fetchProfiles(session.user)
+          } catch (err) {
+            console.error('[useUser] profiles error:', err)
+          } finally {
+            setLoading(false)
+          }
+        }
+      }
+    )
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return {
-    user,
-    profile,
-    taxpayerProfile,
-    loading,
-    error,
-    refresh: fetchData,
-  }
+  return { user, profile, taxpayerProfile, loading, error, refresh: fetchData }
 }
