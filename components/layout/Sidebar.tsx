@@ -162,6 +162,16 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
           Cerrar sesión
         </button>
       </div>
+
+      {/* Credits */}
+      <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
+        <p className="text-[10px] text-slate-400 leading-relaxed text-center">
+          Desarrollado por{' '}
+          <span className="font-semibold text-slate-500">Juan Manuel Gómez</span>
+          <br />
+          © 2026 TRIBUT.AR · v1.0 · Solo educativo
+        </p>
+      </div>
     </aside>
   )
 }
