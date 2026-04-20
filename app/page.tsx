@@ -280,12 +280,23 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">Juan Manuel Gómez</h3>
-                <p className="text-blue-300 text-sm font-medium mb-4">Desarrollador full-stack · Diseñador UX/UI · Especialista en herramientas educativas</p>
+                <p className="text-blue-300 text-sm font-medium mb-1">📍 Wanda, Misiones, Argentina</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {[
+                    '🎓 Prof. en Cs. Económicas — FHyCS, UNaM',
+                    '📘 Lic. en Educación — Universidad FASTA',
+                    '💡 Experto en Tecnología Educativa',
+                  ].map(tag => (
+                    <span key={tag} className="text-xs bg-white/10 text-blue-200 border border-white/10 rounded-full px-3 py-1">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
                 <p className="text-blue-100 text-sm leading-relaxed mb-6">
                   TRIBUT.AR nació de la necesidad de contar con una herramienta práctica y sin riesgos
                   para aprender el sistema impositivo argentino. Desarrollada con Next.js 14, TypeScript,
                   Supabase y Tailwind CSS, la plataforma busca democratizar el acceso al conocimiento
-                  fiscal en Argentina.
+                  fiscal en Argentina desde las aulas universitarias.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {['Next.js 14', 'TypeScript', 'Supabase', 'Tailwind CSS', 'React 18'].map(tech => (
@@ -315,6 +326,38 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── APOYÁ EL PROYECTO ───────────────────────────── */}
+      <section className="py-16 bg-amber-50 border-y border-amber-100">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <div className="text-3xl mb-4">☕</div>
+          <h2 className="text-2xl font-bold text-amber-900 mb-3">¿Te resultó útil TRIBUT.AR?</h2>
+          <p className="text-amber-700 text-base mb-6 max-w-xl mx-auto">
+            Esta herramienta es y seguirá siendo <strong>gratuita</strong>. Si querés apoyar el
+            desarrollo de nuevos módulos y mejoras, podés hacer un aporte voluntario.
+            Cada colaboración ayuda a mantener el proyecto activo.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="https://cafecito.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-7 py-3.5 rounded-xl text-sm shadow-md transition-all hover:scale-105"
+            >
+              ☕ Invitame un café en Cafecito
+            </a>
+            <a
+              href="https://mpago.la/donate"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold px-7 py-3.5 rounded-xl text-sm shadow-md transition-all hover:scale-105"
+            >
+              💙 Colaborar por Mercado Pago
+            </a>
+          </div>
+          <p className="text-xs text-amber-600 mt-4">El aporte es completamente voluntario. Gracias 🙏</p>
         </div>
       </section>
 

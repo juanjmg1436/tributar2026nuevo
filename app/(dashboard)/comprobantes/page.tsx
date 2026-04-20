@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { formatDate, formatCurrency } from '@/lib/utils'
-import { Receipt, Plus, FileText, ChevronDown, ChevronUp, Info, Eye } from 'lucide-react'
+import { Receipt, Plus, FileText, ChevronDown, ChevronUp, Info, Eye, Printer } from 'lucide-react'
 import type { Invoice, InvoiceItem } from '@/types'
 
 export default function ComprobantesPage() {
@@ -185,6 +185,18 @@ export default function ComprobantesPage() {
                         <p className="text-xs text-amber-700 font-semibold">SIMULADOR DIDÁCTICO — SIN VALIDEZ FISCAL/LEGAL — DATOS DEMO</p>
                       </div>
                     </div>
+                  </div>
+                  {/* Botón exportar PDF */}
+                  <div className="flex justify-end">
+                    <a
+                      href={`/comprobantes/${inv.id}/imprimir`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-primary-700 hover:bg-primary-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Exportar / Imprimir PDF
+                    </a>
                   </div>
                 </div>
               )}

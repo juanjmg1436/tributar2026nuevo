@@ -163,13 +163,26 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
         </button>
       </div>
 
+      {/* Apoyo al proyecto */}
+      <div className="px-3 py-2 border-t border-slate-100">
+        <a
+          href="https://cafecito.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-2 transition-colors"
+        >
+          ☕ Apoyar el proyecto
+        </a>
+      </div>
+
       {/* Credits */}
       <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
         <p className="text-[10px] text-slate-400 leading-relaxed text-center">
-          Desarrollado por{' '}
           <span className="font-semibold text-slate-500">Juan Manuel Gómez</span>
           <br />
-          © 2026 TRIBUT.AR · v1.0 · Solo educativo
+          Prof. Cs. Ec. · FHyCS UNaM · Lic. Ed. FASTA
+          <br />
+          Wanda, Misiones · © 2026 TRIBUT.AR
         </p>
       </div>
     </aside>
