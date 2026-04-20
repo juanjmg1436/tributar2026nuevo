@@ -1,20 +1,15 @@
 import Link from 'next/link'
 import {
   BookOpen,
-  CheckCircle2,
   GraduationCap,
   BarChart3,
-  Shield,
-  Users,
   ArrowRight,
   Star,
   FileText,
   Settings,
   Mail,
   Layers,
-  ChevronRight,
-  Github,
-  Linkedin,
+  Users,
 } from 'lucide-react'
 
 export default function HomePage() {
@@ -31,7 +26,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+              <BookOpen className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold text-primary-900 tracking-tight">TRIBUT.AR</span>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>
