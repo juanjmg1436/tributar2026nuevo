@@ -124,7 +124,7 @@ Los datos ingresados en el Simulador (perfiles tributarios, operaciones, etc.) s
               n: '9', title: 'Contacto',
               body: `Para consultas, reportes de errores o comunicaciones relacionadas con estos Términos, puede contactar al Autor a través de:
 
-Email: gomezjuanmanuel.1436@gmail.com
+Email: simulareducativo@gmail.com
 Plataforma: tribut.ar`,
             },
           ].map(({ n, title, body }) => (

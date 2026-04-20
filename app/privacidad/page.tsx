@@ -58,7 +58,7 @@ export default function PrivacidadPage() {
             {
               n: '1', title: 'Responsable del tratamiento',
               body: `Responsable: Juan Manuel Gómez
-Email de contacto: gomezjuanmanuel.1436@gmail.com
+Email de contacto: simulareducativo@gmail.com
 Nombre de la plataforma: TRIBUT.AR
 
 El responsable del tratamiento de datos es el Autor de la plataforma, conforme a lo establecido por la Ley 25.326 de Protección de los Datos Personales de la República Argentina y normativas complementarias.`,
@@ -137,7 +137,7 @@ Si fuera requerido por ley, autoridad competente u orden judicial, el Autor podr
 • Portabilidad: solicitar una copia de sus datos en formato legible por máquina.
 • Oposición: oponerse al tratamiento de sus datos en determinadas circunstancias.
 
-Para ejercer estos derechos, el usuario debe enviar una solicitud a: gomezjuanmanuel.1436@gmail.com
+Para ejercer estos derechos, el usuario debe enviar una solicitud a: simulareducativo@gmail.com
 El Autor responderá en un plazo máximo de 30 días corridos.`,
             },
             {
@@ -166,7 +166,7 @@ Si el Autor tuviese conocimiento de que se han recopilado datos de un menor sin 
               n: '12', title: 'Contacto y consultas',
               body: `Para cualquier consulta, solicitud o reclamo relacionado con el tratamiento de datos personales:
 
-Email: gomezjuanmanuel.1436@gmail.com
+Email: simulareducativo@gmail.com
 Plataforma: TRIBUT.AR (tribut.ar)
 Responsable: Juan Manuel Gómez`,
             },

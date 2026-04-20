@@ -1,10 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  'https://tapxqpuhfzymocgdheab.supabase.co'
+
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhcHhxcHVoZnp5bW9jZ2RoZWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNDUzNzUsImV4cCI6MjA5MTkyMTM3NX0.X3gRT7lavCkz9zAx0d70CEDc7Trj2ai2tJybZJhFwlQ'
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // ── Rutas que nunca necesitan verificación ──────────────────────────
+  // Rutas públicas: pasan sin verificación de auth
   const publicPaths = ['/', '/login', '/register', '/diagnostico', '/terminos', '/privacidad']
   const isPublicPath =
     publicPaths.includes(pathname) ||
@@ -15,20 +23,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
-  // ── Solo llegamos aquí para rutas privadas (/dashboard, etc.) ───────
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    // Sin variables de entorno no podemos verificar → login
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
+  // Rutas privadas: verificar sesión desde cookie (sin llamada de red)
   let supabaseResponse = NextResponse.next({ request })
 
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
         return request.cookies.getAll()
@@ -43,12 +41,16 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // getSession() lee la sesión desde la cookie — SIN llamada de red.
-  // Es instantáneo y no puede colgar aunque Supabase tenga latencia.
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    // No hay sesión → redirigir a login
+  // getSession() lee la cookie — no hace llamada de red, nunca puede colgar
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+  } catch {
+    // Si getSession falla por cualquier razón, redirigir a login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

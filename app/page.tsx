@@ -317,11 +317,11 @@ export default function HomePage() {
               </p>
               <div className="flex gap-3">
                 <a
-                  href="mailto:gomezjuanmanuel.1436@gmail.com"
+                  href="mailto:simulareducativo@gmail.com"
                   className="flex items-center gap-2 text-sm text-blue-300 hover:text-white transition-colors"
                 >
                   <Mail className="w-4 h-4" />
-                  Contacto
+                  simulareducativo@gmail.com
                 </a>
               </div>
             </div>
@@ -339,25 +339,20 @@ export default function HomePage() {
             desarrollo de nuevos módulos y mejoras, podés hacer un aporte voluntario.
             Cada colaboración ayuda a mantener el proyecto activo.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex items-center justify-center">
             <a
-              href="https://cafecito.app"
+              href="https://link.mercadopago.com.ar/tributar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-7 py-3.5 rounded-xl text-sm shadow-md transition-all hover:scale-105"
+              className="inline-flex items-center gap-3 bg-sky-500 hover:bg-sky-600 text-white font-bold px-8 py-4 rounded-xl text-base shadow-lg transition-all hover:scale-105"
             >
-              ☕ Invitame un café en Cafecito
-            </a>
-            <a
-              href="https://mpago.la/donate"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold px-7 py-3.5 rounded-xl text-sm shadow-md transition-all hover:scale-105"
-            >
-              💙 Colaborar por Mercado Pago
+              <span className="text-xl">💙</span>
+              Colaborar por Mercado Pago
             </a>
           </div>
-          <p className="text-xs text-amber-600 mt-4">El aporte es completamente voluntario. Gracias 🙏</p>
+          <p className="text-xs text-amber-600 mt-4">
+            El aporte es completamente voluntario · simulareducativo@gmail.com
+          </p>
         </div>
       </section>
 
@@ -419,8 +414,8 @@ export default function HomePage() {
                 <li><Link href="/terminos" className="hover:text-white transition-colors">Términos y Condiciones</Link></li>
                 <li><Link href="/privacidad" className="hover:text-white transition-colors">Política de Privacidad</Link></li>
                 <li>
-                  <a href="mailto:gomezjuanmanuel.1436@gmail.com" className="hover:text-white transition-colors">
-                    Contacto
+                  <a href="mailto:simulareducativo@gmail.com" className="hover:text-white transition-colors">
+                    simulareducativo@gmail.com
                   </a>
                 </li>
               </ul>
