@@ -4,27 +4,23 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Rutas públicas que no requieren autenticación — se dejan pasar siempre
+  // ── Rutas que nunca necesitan verificación ──────────────────────────
   const publicPaths = ['/', '/login', '/register', '/diagnostico', '/terminos', '/privacidad']
   const isPublicPath =
     publicPaths.includes(pathname) ||
-    pathname.startsWith('/auth') ||
+    pathname.startsWith('/auth/') ||
     pathname.startsWith('/api/')
 
-  // Si la ruta es pública, la dejamos pasar sin verificar auth
-  // (evita la llamada de red a Supabase en cada visita a la landing/login)
   if (isPublicPath) {
     return NextResponse.next({ request })
   }
 
-  // A partir de aquí solo llegan rutas privadas (/dashboard, /perfil-contribuyente, etc.)
-  // Verificamos si las variables de entorno están disponibles
+  // ── Solo llegamos aquí para rutas privadas (/dashboard, etc.) ───────
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    // Sin env vars no podemos verificar — redirigimos a login para que el cliente maneje
-    console.error('[middleware] Variables de entorno de Supabase no configuradas.')
+    // Sin variables de entorno no podemos verificar → login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -47,17 +43,12 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // getUser() hace llamada de red — solo para rutas privadas
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  // getSession() lee la sesión desde la cookie — SIN llamada de red.
+  // Es instantáneo y no puede colgar aunque Supabase tenga latencia.
+  const { data: { session } } = await supabase.auth.getSession()
 
-  // Si hay error de red en la verificación, dejamos pasar (el cliente manejará)
-  if (authError) {
-    console.error('[middleware] error al verificar usuario:', authError.message)
-    return supabaseResponse
-  }
-
-  // Ruta privada sin sesión → login
-  if (!user) {
+  if (!session) {
+    // No hay sesión → redirigir a login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -68,7 +59,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Excluye archivos estáticos y assets
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
   ],
 }
