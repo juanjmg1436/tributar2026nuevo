@@ -2,14 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { BookOpen, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
@@ -25,9 +24,7 @@ const registerSchema = z.object({
 type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -44,66 +41,53 @@ export default function RegisterPage() {
       setLoading(true)
       setError(null)
 
-      const supabase = createClient()
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.fullName,
-            institution: data.institution || null,
-          },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
-        },
+      // 1. Crear usuario en el servidor (con email ya confirmado)
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: data.fullName,
+          email: data.email,
+          password: data.password,
+          institution: data.institution || undefined,
+        }),
       })
 
-      if (signUpError) {
-        if (signUpError.message.toLowerCase().includes('already registered')) {
-          setError('Este email ya está registrado. Intentá iniciar sesión.')
+      const json = await res.json()
+
+      if (!res.ok) {
+        if (json.error === 'CONFIG_MISSING') {
+          setError('El servidor no está configurado correctamente. Contactá al administrador.')
         } else {
-          setError(signUpError.message)
+          setError(json.error ?? 'Error al registrarse. Intentá nuevamente.')
         }
         return
       }
 
-      if (signUpData?.session) {
-        router.push('/dashboard')
-        router.refresh()
+      // 2. Iniciar sesión automáticamente con las mismas credenciales
+      const supabase = createClient()
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      })
+
+      if (loginError || !loginData.session) {
+        console.error('Auto-login error:', loginError)
+        // Usuario creado OK pero login falló — ir a login manual
+        setError('Cuenta creada. Ahora iniciá sesión con tu email y contraseña.')
+        setTimeout(() => { window.location.href = '/login' }, 2000)
         return
       }
 
-      setSuccess(true)
+      // 3. Sesión lista → ir al dashboard
+      window.location.href = '/dashboard'
+
     } catch (err) {
       console.error('REGISTER ERROR:', err)
-      setError('Ocurrió un error al registrarte. Intentá nuevamente.')
+      setError('Ocurrió un error inesperado. Intentá nuevamente.')
     } finally {
       setLoading(false)
     }
-  }
-
-  if (success) {
-    return (
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">¡Registro exitoso!</h2>
-          <p className="text-slate-600 text-sm mb-6">
-            Revisá tu correo electrónico para confirmar tu cuenta y luego podrás ingresar al simulador.
-          </p>
-          <p className="text-xs text-slate-400 mb-6">
-            Si no ves el email, revisá la carpeta de spam o correo no deseado.
-          </p>
-          <Link href="/login">
-            <Button variant="primary" className="w-full">
-              Ir a iniciar sesión
-            </Button>
-          </Link>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -187,7 +171,7 @@ export default function RegisterPage() {
 
             <div className="pt-1">
               <Button type="submit" loading={loading} className="w-full" size="lg">
-                Crear mi cuenta
+                {loading ? 'Creando cuenta...' : 'Crear mi cuenta e ingresar'}
               </Button>
             </div>
           </form>
