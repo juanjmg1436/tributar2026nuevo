@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,8 +9,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Alert } from '@/components/ui/Alert'
-import { BookOpen, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, AlertCircle, Mail } from 'lucide-react'
 
 const loginSchema = z.object({
   email: z.string().email('Ingresá un email válido'),
@@ -18,14 +18,45 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+function translateAuthError(msg: string): string {
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+    return 'Email o contraseña incorrectos. Verificá tus datos e intentá nuevamente.'
+  }
+  if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+    return 'EMAIL_NOT_CONFIRMED'
+  }
+  if (msg.includes('Too many requests') || msg.includes('over_email_send_rate_limit')) {
+    return 'Demasiados intentos. Esperá unos minutos e intentá nuevamente.'
+  }
+  if (msg.includes('User not found')) {
+    return 'No existe una cuenta con ese email. ¿Querés registrarte?'
+  }
+  if (msg.includes('Network') || msg.includes('fetch')) {
+    return 'Error de conexión. Verificá tu internet e intentá nuevamente.'
+  }
+  return `Error: ${msg}`
+}
+
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'auth_callback_failed') {
+      setError('El link de confirmación falló o ya fue usado. Podés intentar ingresar directamente o registrarte de nuevo.')
+    }
+  }, [searchParams])
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -35,6 +66,8 @@ export default function LoginPage() {
     try {
       setLoading(true)
       setError(null)
+      setEmailNotConfirmed(false)
+      setResendSuccess(false)
 
       const supabase = createClient()
 
@@ -44,10 +77,13 @@ export default function LoginPage() {
       })
 
       if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
-          setError('Email o contraseña incorrectos. Verificá tus datos e intentá nuevamente.')
+        console.error('AUTH ERROR:', authError.message, authError)
+        const translated = translateAuthError(authError.message)
+        if (translated === 'EMAIL_NOT_CONFIRMED') {
+          setEmailNotConfirmed(true)
+          setResendEmail(data.email)
         } else {
-          setError(authError.message)
+          setError(translated)
         }
         return
       }
@@ -57,12 +93,33 @@ export default function LoginPage() {
         return
       }
 
+      // Sesión OK → redirigir
       window.location.href = '/dashboard'
     } catch (err) {
-      console.error('LOGIN ERROR:', err)
-      setError('Ocurrió un error inesperado. Intentá nuevamente.')
+      console.error('LOGIN EXCEPTION:', err)
+      setError('Ocurrió un error inesperado. Revisá la consola del navegador (F12) para más detalles.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResendConfirmation() {
+    try {
+      setResendLoading(true)
+      const supabase = createClient()
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: resendEmail,
+      })
+      if (error) {
+        setError(`No se pudo reenviar el email: ${error.message}`)
+      } else {
+        setResendSuccess(true)
+      }
+    } catch {
+      setError('Error al reenviar. Intentá nuevamente.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -78,10 +135,43 @@ export default function LoginPage() {
         </div>
 
         <div className="px-8 py-8">
+
+          {/* Error general — NO tiene botón para cerrarlo */}
           {error && (
-            <Alert variant="error" className="mb-5" dismissible>
-              {error}
-            </Alert>
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+              <p className="text-sm font-medium text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Email no confirmado */}
+          {emailNotConfirmed && (
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <Mail className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Confirmá tu email primero</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Enviamos un link de confirmación a <strong>{resendEmail}</strong>. Revisá tu
+                    bandeja de entrada (y carpeta de spam) y hacé clic en el link antes de ingresar.
+                  </p>
+                </div>
+              </div>
+              {resendSuccess ? (
+                <p className="text-xs text-emerald-700 font-medium text-center">
+                  ✓ Email de confirmación reenviado. Revisá tu bandeja.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendLoading}
+                  className="w-full text-xs font-medium text-amber-800 underline hover:text-amber-900 disabled:opacity-50"
+                >
+                  {resendLoading ? 'Reenviando...' : 'Reenviar email de confirmación'}
+                </button>
+              )}
+            </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -106,9 +196,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   error={errors.password?.message}
                   required
-                  autoComplete="off"
-                  data-1p-ignore
-                  data-lpignore="true"
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

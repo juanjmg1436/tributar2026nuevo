@@ -9,8 +9,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Alert } from '@/components/ui/Alert'
-import { BookOpen, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
@@ -55,7 +54,7 @@ export default function RegisterPage() {
             full_name: data.fullName,
             institution: data.institution || null,
           },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/dashboard`,
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
         },
       })
 
@@ -120,9 +119,10 @@ export default function RegisterPage() {
 
         <div className="px-8 py-8">
           {error && (
-            <Alert variant="error" className="mb-5" dismissible>
-              {error}
-            </Alert>
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+              <p className="text-sm font-medium text-red-700">{error}</p>
+            </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
