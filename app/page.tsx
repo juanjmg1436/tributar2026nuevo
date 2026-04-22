@@ -28,11 +28,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Image
-              src="/images/logo-tributar.svg"
+              src="/images/logo-tributar.png"
               alt="TRIBUT.AR"
               width={36}
               height={36}
-              className="rounded-lg"
+              className="rounded-lg object-contain"
             />
             <span className="text-xl font-bold text-primary-900 tracking-tight">TRIBUT.AR</span>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>

@@ -10,6 +10,7 @@ interface AuthorPhotoProps {
 
 export function AuthorPhoto({ className = '', size = 112 }: AuthorPhotoProps) {
   const [imgSrc, setImgSrc] = useState('/images/autor.png')
+  // autor.png existe en public/images/ — fallback al SVG placeholder si falla
 
   return (
     <div
