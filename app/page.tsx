@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import { AuthorPhoto } from '@/components/ui/AuthorPhoto'
 import {
   BookOpen,
   GraduationCap,
@@ -25,9 +27,13 @@ export default function HomePage() {
       <nav className="sticky top-[42px] z-40 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </div>
+            <Image
+              src="/images/logo-tributar.svg"
+              alt="TRIBUT.AR"
+              width={36}
+              height={36}
+              className="rounded-lg"
+            />
             <span className="text-xl font-bold text-primary-900 tracking-tight">TRIBUT.AR</span>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>
           </div>
@@ -274,10 +280,8 @@ export default function HomePage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-3xl p-8 sm:p-12">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-              {/* Avatar placeholder */}
-              <div className="flex-shrink-0 w-24 h-24 bg-primary-700 rounded-2xl flex items-center justify-center text-4xl font-bold text-white border-4 border-primary-600">
-                JG
-              </div>
+              {/* Foto del autor con fallback automático */}
+              <AuthorPhoto size={112} />
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">Juan Manuel Gómez</h3>
                 <p className="text-blue-300 text-sm font-medium mb-1">📍 Wanda, Misiones, Argentina</p>

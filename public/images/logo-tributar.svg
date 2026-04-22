@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 420" fill="none">
+  <!-- Figura arriba (azul medio) -->
+  <circle cx="200" cy="72" r="28" fill="#1565C0"/>
+  <path d="M160 130 Q200 105 240 130 L248 185 Q200 170 152 185 Z" fill="#1565C0"/>
+
+  <!-- Figura derecha (azul claro) -->
+  <circle cx="318" cy="200" r="24" fill="#42A5F5"/>
+  <path d="M278 230 Q318 210 355 235 L358 280 Q318 268 275 280 Z" fill="#42A5F5"/>
+
+  <!-- Figura abajo (azul muy claro) -->
+  <circle cx="200" cy="318" r="24" fill="#90CAF9"/>
+  <path d="M162 342 Q200 322 238 342 L242 388 Q200 375 158 388 Z" fill="#90CAF9"/>
+
+  <!-- Figura izquierda (azul oscuro) -->
+  <circle cx="82" cy="200" r="24" fill="#0D2B6B"/>
+  <path d="M42 230 Q82 210 118 235 L122 280 Q82 268 38 280 Z" fill="#0D2B6B"/>
+
+  <!-- Círculo central blanco -->
+  <circle cx="200" cy="210" r="52" fill="white"/>
+
+  <!-- Texto tribu.ar -->
+  <text x="200" y="395" font-family="'Segoe UI', Arial, sans-serif" font-size="52" font-weight="700" text-anchor="middle">
+    <tspan fill="#0D2B6B">tribu</tspan><tspan fill="#1565C0">.ar</tspan>
+  </text>
+</svg>

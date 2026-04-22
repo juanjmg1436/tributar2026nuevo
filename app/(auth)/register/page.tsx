@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { BookOpen, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, AlertCircle, CheckCircle2, Mail } from 'lucide-react'
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
@@ -25,6 +25,8 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  const [confirmedEmail, setConfirmedEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -40,8 +42,9 @@ export default function RegisterPage() {
     try {
       setLoading(true)
       setError(null)
+      setNeedsConfirmation(false)
 
-      // 1. Crear usuario en el servidor (con email ya confirmado)
+      // 1. Crear usuario en el servidor (con email ya confirmado si hay service key)
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,15 +59,18 @@ export default function RegisterPage() {
       const json = await res.json()
 
       if (!res.ok) {
-        if (json.error === 'CONFIG_MISSING') {
-          setError('El servidor no está configurado correctamente. Contactá al administrador.')
-        } else {
-          setError(json.error ?? 'Error al registrarse. Intentá nuevamente.')
-        }
+        setError(json.error ?? 'Error al registrarse. Intentá nuevamente.')
         return
       }
 
-      // 2. Iniciar sesión automáticamente con las mismas credenciales
+      // 2a. Si el servidor necesita confirmación de email → mostrar aviso
+      if (json.needsConfirmation) {
+        setConfirmedEmail(data.email)
+        setNeedsConfirmation(true)
+        return
+      }
+
+      // 2b. Iniciar sesión automáticamente
       const supabase = createClient()
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -73,13 +79,13 @@ export default function RegisterPage() {
 
       if (loginError || !loginData.session) {
         console.error('Auto-login error:', loginError)
-        // Usuario creado OK pero login falló — ir a login manual
-        setError('Cuenta creada. Ahora iniciá sesión con tu email y contraseña.')
+        // Usuario creado OK pero login falló — ir al login manual
+        setError('Cuenta creada correctamente. Por favor iniciá sesión.')
         setTimeout(() => { window.location.href = '/login' }, 2000)
         return
       }
 
-      // 3. Sesión lista → ir al dashboard
+      // 3. Todo OK → dashboard
       window.location.href = '/dashboard'
 
     } catch (err) {
@@ -88,6 +94,35 @@ export default function RegisterPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Pantalla de confirmación pendiente
+  if (needsConfirmation) {
+    return (
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Confirmá tu email</h2>
+          <p className="text-slate-600 text-sm mb-2">
+            Tu cuenta fue creada. Enviamos un email de confirmación a:
+          </p>
+          <p className="font-semibold text-primary-700 text-sm mb-6">{confirmedEmail}</p>
+          <p className="text-xs text-slate-400 mb-6">
+            Revisá tu bandeja de entrada y carpeta de spam. Hacé clic en el link del email para activar tu cuenta.
+          </p>
+          <Link href="/login">
+            <Button variant="primary" className="w-full">
+              Ir a iniciar sesión
+            </Button>
+          </Link>
+          <p className="text-xs text-slate-400 mt-4">
+            ¿No llegó el email? Podés reenviar la confirmación desde la pantalla de inicio de sesión.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -171,7 +206,7 @@ export default function RegisterPage() {
 
             <div className="pt-1">
               <Button type="submit" loading={loading} className="w-full" size="lg">
-                {loading ? 'Creando cuenta...' : 'Crear mi cuenta e ingresar'}
+                {loading ? 'Creando cuenta...' : 'Crear cuenta e ingresar'}
               </Button>
             </div>
           </form>
