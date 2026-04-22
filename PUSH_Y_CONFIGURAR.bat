@@ -1,43 +1,38 @@
 @echo off
-echo ===============================================
-echo  TRIBUT.AR - Push y configuracion de Vercel
-echo ===============================================
+chcp 65001 >/dev/null
+title TRIBUT.AR - Push a GitHub
+
+cd /d "C:\Users\juanj\OneDrive\Desktop\Simulador Fiscal"
+
+echo.
+echo ================================================
+echo   TRIBUT.AR - Subiendo cambios a GitHub...
+echo ================================================
 echo.
 
-echo [1/2] Pusheando commits al repositorio...
 git push origin main
-IF %ERRORLEVEL% NEQ 0 (
-    echo ERROR: No se pudo pushear. Verifica tu conexion y credenciales de GitHub.
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR al hacer push. Intenta ejecutar manualmente:
+    echo   git push origin main
+    echo.
     pause
     exit /b 1
 )
-echo OK - Codigo pusheado exitosamente.
-echo.
 
-echo [2/2] Listo!
 echo.
-echo ===============================================
-echo  PASO SIGUIENTE - Configurar Vercel
-echo ===============================================
+echo ================================================
+echo   PUSH EXITOSO! Vercel deployara en ~1 minuto
+echo ================================================
 echo.
-echo Abre este link en tu navegador:
-echo https://vercel.com/dashboard
+echo PASO FINAL - Agregar en Vercel:
+echo   https://vercel.com → tu proyecto → Settings → Environment Variables
 echo.
-echo Luego:
-echo  1. Click en tu proyecto tributar2026nuevo
-echo  2. Settings ^> Environment Variables
-echo  3. Agregar estas 2 variables (para Production, Preview y Development):
+echo   Nombre:  SUPABASE_SERVICE_ROLE_KEY
+echo   Valor:   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhcHhxcHVoZnp5bW9jZ2RoZWFiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjM0NTM3NSwiZXhwIjoyMDkxOTIxMzc1fQ.93amDGa5l7pmhI-yQUb9zpxz2fvWGbISZ0R_rTQLHdk
 echo.
-echo  Nombre: NEXT_PUBLIC_SUPABASE_URL
-echo  Valor:  https://tapxqpuhfzymocgdheab.supabase.co
-echo.
-echo  Nombre: NEXT_PUBLIC_SUPABASE_ANON_KEY
-echo  Valor:  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhcHhxcHVoZnp5bW9jZ2RoZWFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNDUzNzUsImV4cCI6MjA5MTkyMTM3NX0.X3gRT7lavCkz9zAx0d70CEDc7Trj2ai2tJybZJhFwlQ
-echo.
-echo  4. Despues de guardar: Deployments ^> (ultimo deploy) ^> Redeploy
-echo.
-echo ===============================================
-echo.
-echo Para diagnostico, visita: /diagnostico en tu app
+echo   Entornos: Production + Preview + Development
+echo   Luego: Redeploy desde Vercel
 echo.
 pause
