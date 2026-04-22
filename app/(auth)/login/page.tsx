@@ -6,10 +6,11 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { signInAction } from '@/app/actions/auth'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { BookOpen, Eye, EyeOff, AlertCircle, Mail } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 const loginSchema = z.object({
   email: z.string().email('Ingresá un email válido'),
@@ -30,11 +31,11 @@ function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get('error') === 'auth_callback_failed') {
-      setError('El link de confirmación falló o ya fue usado. Intentá ingresar directamente.')
+      setError('El link de confirmación falló. Intentá ingresar directamente.')
     }
   }, [searchParams])
 
-  const { register, handleSubmit, getValues, formState: { errors } } = useForm<LoginForm>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
 
@@ -43,33 +44,26 @@ function LoginForm() {
       setLoading(true)
       setError(null)
       setEmailNotConfirmed(false)
-      setResendSuccess(false)
 
-      // Login server-side: el servidor setea las cookies correctamente
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password }),
-      })
+      // Server Action: maneja cookies y redirect en el servidor
+      const result = await signInAction(data.email, data.password)
 
-      const json = await res.json()
-
-      if (!res.ok) {
-        if (json.error === 'EMAIL_NOT_CONFIRMED') {
+      // Si llegamos acá es porque hubo un error (redirect no llegó al cliente)
+      if (result?.error) {
+        if (result.error === 'EMAIL_NOT_CONFIRMED') {
           setEmailNotConfirmed(true)
           setResendEmail(data.email)
         } else {
-          setError(json.error ?? 'Error al ingresar. Intentá nuevamente.')
+          setError(result.error)
         }
-        return
       }
-
-      // Cookies seteadas por el servidor → navegar al dashboard
-      window.location.replace('/dashboard')
-
-    } catch (err) {
+    } catch (err: any) {
+      // Next.js redirect() lanza un error especial — es el redirect exitoso
+      if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
+        return // redirect funcionó correctamente
+      }
       console.error('LOGIN ERROR:', err)
-      setError('Error de conexión. Verificá tu internet e intentá nuevamente.')
+      setError('Error inesperado. Intentá nuevamente.')
     } finally {
       setLoading(false)
     }
@@ -81,7 +75,7 @@ function LoginForm() {
       const supabase = createClient()
       const { error } = await supabase.auth.resend({ type: 'signup', email: resendEmail })
       if (error) {
-        setError(`No se pudo reenviar el email: ${error.message}`)
+        setError(`No se pudo reenviar: ${error.message}`)
       } else {
         setResendSuccess(true)
       }
@@ -103,6 +97,7 @@ function LoginForm() {
       </div>
 
       <div className="px-8 py-8">
+
         {error && (
           <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
@@ -117,7 +112,7 @@ function LoginForm() {
               <div>
                 <p className="text-sm font-semibold text-amber-800">Confirmá tu email primero</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  Revisá tu bandeja de entrada para <strong>{resendEmail}</strong> y hacé clic en el link de confirmación.
+                  Revisá tu bandeja para <strong>{resendEmail}</strong> y hacé clic en el link de confirmación.
                 </p>
               </div>
             </div>
