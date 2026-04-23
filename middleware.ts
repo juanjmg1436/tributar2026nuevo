@@ -41,17 +41,18 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // getUser() valida el token contra Supabase — más seguro que getSession()
-  // IMPORTANTE: no usar getSession() aquí, puede retornar datos expirados/inválidos
+  // getSession() lee la cookie local — NO hace llamada de red, nunca puede colgar.
+  // Funciona correctamente porque el login es client-side (createBrowserClient),
+  // así las cookies son accesibles tanto en browser como en request.cookies del middleware.
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   } catch {
-    // Si getUser falla por cualquier razón, redirigir a login
+    // Si getSession falla por cualquier razón, redirigir a login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
