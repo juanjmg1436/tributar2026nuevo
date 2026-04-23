@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { signInAction } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -21,6 +20,7 @@ type LoginForm = z.infer<typeof loginSchema>
 
 function LoginForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
   const [resendEmail, setResendEmail] = useState('')
@@ -45,23 +45,32 @@ function LoginForm() {
       setError(null)
       setEmailNotConfirmed(false)
 
-      // Server Action: maneja cookies y redirect en el servidor
-      const result = await signInAction(data.email, data.password)
+      // Login client-side con createBrowserClient — las cookies quedan accesibles
+      // en el browser sin necesidad de pasar por Server Actions
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      })
 
-      // Si llegamos acá es porque hubo un error (redirect no llegó al cliente)
-      if (result?.error) {
-        if (result.error === 'EMAIL_NOT_CONFIRMED') {
+      if (authError) {
+        const msg = authError.message
+        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+          setError('Email o contraseña incorrectos.')
+        } else if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
           setEmailNotConfirmed(true)
           setResendEmail(data.email)
         } else {
-          setError(result.error)
+          setError(msg)
         }
+        return
       }
+
+      // Login exitoso: refrescar el estado del router y navegar al dashboard
+      router.refresh()
+      router.push('/dashboard')
+
     } catch (err: any) {
-      // Next.js redirect() lanza un error especial — es el redirect exitoso
-      if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
-        return // redirect funcionó correctamente
-      }
       console.error('LOGIN ERROR:', err)
       setError('Error inesperado. Intentá nuevamente.')
     } finally {

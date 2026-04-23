@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
-  // Rutas privadas: verificar sesión desde cookie (sin llamada de red)
+  // Rutas privadas: verificar usuario con validación server-side real
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -41,16 +41,17 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // getSession() lee la cookie — no hace llamada de red, nunca puede colgar
+  // getUser() valida el token contra Supabase — más seguro que getSession()
+  // IMPORTANTE: no usar getSession() aquí, puede retornar datos expirados/inválidos
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   } catch {
-    // Si getSession falla por cualquier razón, redirigir a login
+    // Si getUser falla por cualquier razón, redirigir a login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
