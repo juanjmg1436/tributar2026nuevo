@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,7 +20,6 @@ type LoginForm = z.infer<typeof loginSchema>
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
   const [resendEmail, setResendEmail] = useState('')
@@ -66,9 +65,9 @@ function LoginForm() {
         return
       }
 
-      // Login exitoso: refrescar el estado del router y navegar al dashboard
-      router.refresh()
-      router.push('/dashboard')
+      // Login exitoso: navegación completa del browser (no client-side)
+      // para garantizar que las cookies se envíen correctamente al servidor.
+      window.location.href = '/dashboard'
 
     } catch (err: any) {
       console.error('LOGIN ERROR:', err)
