@@ -165,14 +165,18 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
 
       {/* Apoyo al proyecto */}
       <div className="px-3 py-2 border-t border-slate-100">
-        <a
-          href="https://cafecito.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-2 transition-colors"
-        >
-          ☕ Apoyar el proyecto
-        </a>
+        <div className="w-full text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+          <p className="font-semibold text-blue-700 mb-1">💙 Apoyar el proyecto</p>
+          <p className="text-blue-600 leading-relaxed">
+            Transferí por Mercado Pago:
+          </p>
+          <p className="font-mono text-[10px] text-blue-800 mt-1 break-all select-all">
+            CVU: 0000003100045253425987
+          </p>
+          <p className="text-blue-600 mt-0.5">
+            Alias: <span className="font-semibold select-all">juanjmg14</span>
+          </p>
+        </div>
       </div>
 
       {/* Credits */}
