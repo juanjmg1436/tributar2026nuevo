@@ -16,7 +16,6 @@ interface UseUserReturn {
   setActiveTaxpayer: (id: string) => Promise<void>
 }
 
-// Garantiza que las queries no cuelguen más de `ms` milisegundos
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(
@@ -47,85 +46,78 @@ export function useUser(): UseUserReturn {
     if (profileError) throw profileError
     setProfile(profileData ?? null)
 
-    // Soporte multi-contribuyente: traer todos, ordenados por slot
     const { data: allTP, error: tpError } = await supabase
       .from('taxpayer_profiles')
       .select('*')
       .eq('user_id', authUser.id)
-      .order('slot', { ascending: true })
+      .order('created_at', { ascending: true })
 
     if (tpError) throw tpError
     const profiles = allTP ?? []
     setAllTaxpayerProfiles(profiles)
-
-    // Activo: el que tiene is_active=true, o el primero disponible
-    const active = profiles.find((p: TaxpayerProfile) => (p as any).is_active) ?? profiles[0] ?? null
-    setTaxpayerProfile(active)
+    setTaxpayerProfile(profiles[0] ?? null)
   }
 
-  async function fetchData() {
+  async function refresh() {
+    if (!user) return
+    setLoading(true)
     try {
-      setLoading(true)
-      setError(null)
-
-      // getSession() lee la cookie — no hace llamada de red, nunca puede colgar
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.user) {
-        setUser(null)
-        setProfile(null)
-        setTaxpayerProfile(null)
-        setAllTaxpayerProfiles([])
-        return
-      }
-
-      setUser(session.user)
-
-      // Timeout de 8s: si Supabase no responde, la app igual termina de cargar
-      await withTimeout(fetchProfiles(session.user), 8000)
-
+      await withTimeout(fetchProfiles(user), 8000)
     } catch (err) {
-      console.error('[useUser]', err)
-      // No limpiamos `user` — el error puede ser de la DB, no de auth
-      setError(err instanceof Error ? err.message : 'Error al cargar datos del perfil')
+      console.error('[useUser] refresh error:', err)
+      setError(err instanceof Error ? err.message : 'Error al recargar datos')
     } finally {
       setLoading(false)
     }
   }
 
-  // Cambiar contribuyente activo (de hasta 3)
   async function setActiveTaxpayer(id: string) {
     if (!user) return
-    await supabase.from('taxpayer_profiles').update({ is_active: false } as any).eq('user_id', user.id)
-    await supabase.from('taxpayer_profiles').update({ is_active: true } as any).eq('id', id)
     const found = allTaxpayerProfiles.find(p => p.id === id)
     if (found) {
       setTaxpayerProfile(found)
-      setAllTaxpayerProfiles(prev => prev.map(p => ({ ...p, is_active: p.id === id } as any)))
     }
   }
 
   useEffect(() => {
-    fetchData()
-
+    // IMPORTANTE: No llamar getSession() por separado.
+    // createBrowserClient._recoverAndRefresh() es async — getSession() llamado antes
+    // de que termine retorna null aunque el usuario esté autenticado.
+    // onAuthStateChange dispara INITIAL_SESSION DESPUÉS de que la recuperación termina,
+    // garantizando que la sesión ya está disponible cuando se usa.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
-          setUser(null); setProfile(null); setTaxpayerProfile(null)
-          setAllTaxpayerProfiles([]); setLoading(false)
+          setUser(null)
+          setProfile(null)
+          setTaxpayerProfile(null)
+          setAllTaxpayerProfiles([])
+          setError(null)
+          setLoading(false)
           return
         }
+
         if (session?.user) {
           setUser(session.user)
-          setLoading(true)
-          try {
-            await withTimeout(fetchProfiles(session.user), 8000)
-          } catch (err) {
-            console.error('[useUser] onAuthStateChange error:', err)
-            setError(err instanceof Error ? err.message : 'Error al cargar datos')
-          } finally {
-            setLoading(false)
+          setError(null)
+          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+            setLoading(true)
+            try {
+              await withTimeout(fetchProfiles(session.user), 8000)
+            } catch (err) {
+              console.error('[useUser]', err)
+              setError(err instanceof Error ? err.message : 'Error al cargar datos del perfil')
+            } finally {
+              setLoading(false)
+            }
           }
+        } else if (event === 'INITIAL_SESSION') {
+          // INITIAL_SESSION sin sesión → usuario no autenticado
+          setUser(null)
+          setProfile(null)
+          setTaxpayerProfile(null)
+          setAllTaxpayerProfiles([])
+          setLoading(false)
         }
       }
     )
@@ -133,5 +125,5 @@ export function useUser(): UseUserReturn {
     return () => subscription.unsubscribe()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { user, profile, taxpayerProfile, allTaxpayerProfiles, loading, error, refresh: fetchData, setActiveTaxpayer }
+  return { user, profile, taxpayerProfile, allTaxpayerProfiles, loading, error, refresh, setActiveTaxpayer }
 }
