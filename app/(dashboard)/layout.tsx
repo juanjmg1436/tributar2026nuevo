@@ -39,16 +39,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-slate-50">
       <SimuladorBanner />
       <Sidebar
-        mobileOpen={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
         progress={progress}
-        unreadCount={unreadCount}
+        userName={profile?.full_name}
+        onSignOut={handleSignOut}
       />
       <div className="lg:pl-72">
         <Header
-          onOpenMobile={() => setMobileNavOpen(true)}
-          progress={progress}
+          onMenuToggle={() => setMobileNavOpen(true)}
           userName={profile?.full_name}
+          unreadNotifications={unreadCount}
           onSignOut={handleSignOut}
         />
         <main>
@@ -61,7 +60,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <MobileNav
-        onOpenMenu={() => setMobileNavOpen(true)}
+        isOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        progress={progress}
+        userName={profile?.full_name}
         onSignOut={handleSignOut}
       />
     </div>

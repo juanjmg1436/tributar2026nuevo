@@ -37,18 +37,25 @@ export default function HomePage() {
             <span className="text-xl font-bold text-primary-900 tracking-tight">TRIBUT.AR</span>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/login"
-              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
+              className="hidden sm:block text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors whitespace-nowrap"
             >
               Iniciar sesión
             </Link>
             <Link
-              href="/register"
-              className="text-sm font-semibold bg-primary-700 hover:bg-primary-800 text-white px-4 py-2 rounded-lg transition-colors"
+              href="/login"
+              className="sm:hidden text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
             >
-              Registrarse gratis
+              Ingresar
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm font-semibold bg-primary-700 hover:bg-primary-800 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <span className="sm:hidden">Registrarse</span>
+              <span className="hidden sm:inline">Registrarse gratis</span>
             </Link>
           </div>
         </div>
@@ -272,6 +279,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── APOYÁ EL PROYECTO ───────────────────────────── */}
+      <section className="py-14 bg-blue-50 border-y border-blue-100">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Colaboraciones</p>
+          <h2 className="text-2xl font-bold text-blue-900 mb-3">¿Te resultó útil TRIBUT.AR?</h2>
+          <p className="text-blue-700 text-base mb-6 max-w-xl mx-auto">
+            Esta herramienta es y seguirá siendo <strong>gratuita</strong>. Si querés apoyar el
+            desarrollo de nuevos módulos, podés hacer un aporte voluntario por Mercado Pago.
+          </p>
+          <div className="inline-block bg-white border border-blue-200 rounded-2xl px-6 py-5 shadow-sm text-left">
+            <p className="text-sm font-semibold text-blue-800 mb-2">💙 Transferir por Mercado Pago</p>
+            <p className="text-xs text-blue-600 mb-1">
+              CVU: <span className="font-mono font-semibold text-blue-900 select-all">0000003100045253425987</span>
+            </p>
+            <p className="text-xs text-blue-600">
+              Alias: <span className="font-semibold text-blue-900 select-all">juanjmg14</span>
+            </p>
+          </div>
+          <p className="text-xs text-blue-500 mt-4">
+            Aporte voluntario · simulareducativo@gmail.com
+          </p>
+        </div>
+      </section>
+
       {/* ── AUTOR ───────────────────────────────────────── */}
       <section className="py-24 bg-gradient-to-br from-slate-900 to-primary-950 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -330,33 +361,6 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── APOYÁ EL PROYECTO ───────────────────────────── */}
-      <section className="py-16 bg-amber-50 border-y border-amber-100">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <div className="text-3xl mb-4">☕</div>
-          <h2 className="text-2xl font-bold text-amber-900 mb-3">¿Te resultó útil TRIBUT.AR?</h2>
-          <p className="text-amber-700 text-base mb-6 max-w-xl mx-auto">
-            Esta herramienta es y seguirá siendo <strong>gratuita</strong>. Si querés apoyar el
-            desarrollo de nuevos módulos y mejoras, podés hacer un aporte voluntario.
-            Cada colaboración ayuda a mantener el proyecto activo.
-          </p>
-          <div className="flex items-center justify-center">
-            <a
-              href="https://link.mercadopago.com.ar/tributar"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-sky-500 hover:bg-sky-600 text-white font-bold px-8 py-4 rounded-xl text-base shadow-lg transition-all hover:scale-105"
-            >
-              <span className="text-xl">💙</span>
-              Colaborar por Mercado Pago
-            </a>
-          </div>
-          <p className="text-xs text-amber-600 mt-4">
-            El aporte es completamente voluntario · simulareducativo@gmail.com
-          </p>
         </div>
       </section>
 
