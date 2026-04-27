@@ -24,6 +24,16 @@ const PAGE_TITLES: Record<string, string> = {
   '/puntos-venta': 'Puntos de venta',
   '/comprobantes': 'Comprobantes',
   '/historial': 'Historial de acciones',
+  // Motor fiscal
+  '/compras': 'Compras y gastos',
+  '/iva': 'DDJJ IVA',
+  '/ganancias': 'Impuesto a las Ganancias',
+  '/monotributo': 'Monotributo',
+  '/empleados': 'Empleadores y trabajadores',
+  '/sueldos': 'Liquidación de sueldos',
+  '/cargas-sociales': 'Cargas Sociales (F.931)',
+  '/estado-fiscal': 'Estado fiscal integral',
+  '/configuracion-fiscal': 'Configuración fiscal (Docente)',
   // ATM Misiones
   '/misiones': 'ATM Misiones Simulado',
   '/misiones/alta': 'Alta Provincial — Misiones',

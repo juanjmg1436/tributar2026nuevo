@@ -7,7 +7,8 @@ import type { UserProgress } from '@/types'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
-  Lock, BookOpen, MapPin
+  Lock, BookOpen, MapPin, ShoppingCart, ReceiptText, TrendingUp,
+  Layers, Users, DollarSign, BarChart3, GraduationCap
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -24,75 +25,92 @@ interface NavItem {
   badge?: string
 }
 
+interface NavSection {
+  title: string
+  items: NavItem[]
+}
+
 export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
   const pathname = usePathname()
 
   const navItems: NavItem[] = [
+    { href: '/dashboard', label: 'Panel principal', icon: <LayoutDashboard className="w-5 h-5" />, locked: false },
+    { href: '/perfil-contribuyente', label: 'Perfil del contribuyente', icon: <User className="w-5 h-5" />, locked: false },
+    { href: '/alta-rut', label: 'Alta registral', icon: <FileText className="w-5 h-5" />, locked: !progress?.hasTaxpayerProfile },
+    { href: '/administrador-relaciones', label: 'Administrador de relaciones', icon: <Settings className="w-5 h-5" />, locked: !progress?.registrationComplete },
+    { href: '/estado-cuenta', label: 'Estado de cuenta', icon: <CreditCard className="w-5 h-5" />, locked: !progress?.registrationComplete },
+    { href: '/domicilio-fiscal', label: 'Domicilio fiscal electrónico', icon: <Mail className="w-5 h-5" />, locked: !progress?.hasActiveRegime },
+    { href: '/puntos-venta', label: 'Puntos de venta', icon: <ShoppingBag className="w-5 h-5" />, locked: !progress?.registrationComplete },
+    { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-5 h-5" />, locked: !progress?.hasPOS },
+    { href: '/historial', label: 'Historial de acciones', icon: <History className="w-5 h-5" />, locked: false },
+  ]
+
+  const fiscalSections: NavSection[] = [
     {
-      href: '/dashboard',
-      label: 'Panel principal',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      locked: false,
+      title: 'Facturación y compras',
+      items: [
+        { href: '/compras', label: 'Compras y gastos', icon: <ShoppingCart className="w-4 h-4" />, locked: false },
+      ],
     },
     {
-      href: '/perfil-contribuyente',
-      label: 'Perfil del contribuyente',
-      icon: <User className="w-5 h-5" />,
-      locked: false,
+      title: 'Impuestos nacionales',
+      items: [
+        { href: '/iva', label: 'DDJJ IVA', icon: <ReceiptText className="w-4 h-4" />, locked: false },
+        { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" />, locked: false },
+        { href: '/monotributo', label: 'Monotributo', icon: <Layers className="w-4 h-4" />, locked: false },
+      ],
     },
     {
-      href: '/alta-rut',
-      label: 'Alta registral',
-      icon: <FileText className="w-5 h-5" />,
-      locked: !progress?.hasTaxpayerProfile,
+      title: 'Laboral',
+      items: [
+        { href: '/empleados', label: 'Empleados', icon: <Users className="w-4 h-4" />, locked: false },
+        { href: '/sueldos', label: 'Liquidación de sueldos', icon: <DollarSign className="w-4 h-4" />, locked: false },
+        { href: '/cargas-sociales', label: 'Cargas Sociales (F.931)', icon: <BarChart3 className="w-4 h-4" />, locked: false },
+      ],
     },
     {
-      href: '/administrador-relaciones',
-      label: 'Administrador de relaciones',
-      icon: <Settings className="w-5 h-5" />,
-      locked: !progress?.registrationComplete,
+      title: 'Resumen',
+      items: [
+        { href: '/estado-fiscal', label: 'Estado fiscal integral', icon: <LayoutDashboard className="w-4 h-4" />, locked: false, badge: 'NUEVO' },
+      ],
     },
     {
-      href: '/estado-cuenta',
-      label: 'Estado de cuenta',
-      icon: <CreditCard className="w-5 h-5" />,
-      locked: !progress?.registrationComplete,
+      title: 'Impuestos provinciales',
+      items: [
+        { href: '/misiones', label: 'ATM Misiones', icon: <MapPin className="w-4 h-4" />, locked: false },
+      ],
     },
     {
-      href: '/domicilio-fiscal',
-      label: 'Domicilio fiscal electrónico',
-      icon: <Mail className="w-5 h-5" />,
-      locked: !progress?.hasActiveRegime,
-    },
-    {
-      href: '/puntos-venta',
-      label: 'Puntos de venta',
-      icon: <ShoppingBag className="w-5 h-5" />,
-      locked: !progress?.registrationComplete,
-    },
-    {
-      href: '/comprobantes',
-      label: 'Comprobantes',
-      icon: <Receipt className="w-5 h-5" />,
-      locked: !progress?.hasPOS,
-    },
-    {
-      href: '/historial',
-      label: 'Historial de acciones',
-      icon: <History className="w-5 h-5" />,
-      locked: false,
+      title: 'Docente',
+      items: [
+        { href: '/configuracion-fiscal', label: 'Configuración fiscal', icon: <GraduationCap className="w-4 h-4" />, locked: false },
+      ],
     },
   ]
 
-  const provincialNavItems: NavItem[] = [
-    {
-      href: '/misiones',
-      label: 'ATM Misiones',
-      icon: <MapPin className="w-5 h-5" />,
-      locked: false,
-      badge: 'NUEVO',
-    },
-  ]
+  const renderItem = (item: NavItem) => {
+    const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard')
+    return (
+      <div key={item.href}>
+        {item.locked ? (
+          <div className="nav-link nav-link-locked gap-3">
+            {item.icon}
+            <span className="flex-1 truncate">{item.label}</span>
+            <Lock className="w-3.5 h-3.5 text-slate-400" />
+          </div>
+        ) : (
+          <Link href={item.href} className={cn('nav-link', isActive && 'nav-link-active')}>
+            {item.icon}
+            <span className="flex-1 truncate">{item.label}</span>
+            {item.badge && !isActive && (
+              <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">{item.badge}</span>
+            )}
+            {isActive && <ChevronRight className="w-4 h-4" />}
+          </Link>
+        )}
+      </div>
+    )
+  }
 
   return (
     <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 z-40">
@@ -111,54 +129,17 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href)
-          return (
-            <div key={item.href}>
-              {item.locked ? (
-                <div className={cn('nav-link nav-link-locked gap-3')}>
-                  {item.icon}
-                  <span className="flex-1 truncate">{item.label}</span>
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-              ) : (
-                <Link
-                  href={item.href}
-                  className={cn('nav-link', isActive && 'nav-link-active')}
-                >
-                  {item.icon}
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {isActive && <ChevronRight className="w-4 h-4" />}
-                </Link>
-              )}
-            </div>
-          )
-        })}
+        {/* Sección principal */}
+        <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Principal</p>
+        {navItems.map(renderItem)}
 
-        {/* Sección impuestos provinciales */}
-        <div className="pt-3 pb-1">
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Impuestos provinciales</p>
-          {provincialNavItems.map((item) => {
-            const isActive = pathname.startsWith(item.href)
-            return (
-              <div key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn('nav-link', isActive && 'nav-link-active')}
-                >
-                  {item.icon}
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge && !isActive && (
-                    <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                  {isActive && <ChevronRight className="w-4 h-4" />}
-                </Link>
-              </div>
-            )
-          })}
-        </div>
+        {/* Secciones fiscales */}
+        {fiscalSections.map(section => (
+          <div key={section.title} className="pt-3">
+            <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{section.title}</p>
+            {section.items.map(renderItem)}
+          </div>
+        ))}
       </nav>
 
       {/* Progress */}

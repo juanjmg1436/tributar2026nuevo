@@ -4,7 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProgress } from '@/types'
-import { LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag, Receipt, History, Lock, X, BookOpen, MapPin } from 'lucide-react'
+import {
+  LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag,
+  Receipt, History, Lock, X, BookOpen, MapPin, ShoppingCart, ReceiptText,
+  TrendingUp, Layers, Users, DollarSign, BarChart3, GraduationCap
+} from 'lucide-react'
 
 interface MobileNavProps {
   isOpen: boolean
@@ -17,20 +21,51 @@ interface MobileNavProps {
 export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: MobileNavProps) {
   const pathname = usePathname()
 
-  const items = [
-    { href: '/dashboard', label: 'Panel principal', icon: <LayoutDashboard className="w-5 h-5" />, locked: false },
-    { href: '/perfil-contribuyente', label: 'Perfil', icon: <User className="w-5 h-5" />, locked: false },
-    { href: '/alta-rut', label: 'Alta registral', icon: <FileText className="w-5 h-5" />, locked: !progress?.hasTaxpayerProfile },
-    { href: '/administrador-relaciones', label: 'Relaciones', icon: <Settings className="w-5 h-5" />, locked: !progress?.registrationComplete },
-    { href: '/estado-cuenta', label: 'Estado de cuenta', icon: <CreditCard className="w-5 h-5" />, locked: !progress?.registrationComplete },
-    { href: '/domicilio-fiscal', label: 'Domicilio fiscal', icon: <Mail className="w-5 h-5" />, locked: !progress?.hasActiveRegime },
-    { href: '/puntos-venta', label: 'Puntos de venta', icon: <ShoppingBag className="w-5 h-5" />, locked: !progress?.registrationComplete },
-    { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-5 h-5" />, locked: !progress?.hasPOS },
-    { href: '/historial', label: 'Historial', icon: <History className="w-5 h-5" />, locked: false },
+  const mainItems = [
+    { href: '/dashboard', label: 'Panel principal', icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
+    { href: '/perfil-contribuyente', label: 'Perfil', icon: <User className="w-4 h-4" />, locked: false },
+    { href: '/alta-rut', label: 'Alta registral', icon: <FileText className="w-4 h-4" />, locked: !progress?.hasTaxpayerProfile },
+    { href: '/administrador-relaciones', label: 'Relaciones', icon: <Settings className="w-4 h-4" />, locked: !progress?.registrationComplete },
+    { href: '/estado-cuenta', label: 'Estado de cuenta', icon: <CreditCard className="w-4 h-4" />, locked: !progress?.registrationComplete },
+    { href: '/domicilio-fiscal', label: 'Domicilio fiscal', icon: <Mail className="w-4 h-4" />, locked: !progress?.hasActiveRegime },
+    { href: '/puntos-venta', label: 'Puntos de venta', icon: <ShoppingBag className="w-4 h-4" />, locked: !progress?.registrationComplete },
+    { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-4 h-4" />, locked: !progress?.hasPOS },
+    { href: '/historial', label: 'Historial', icon: <History className="w-4 h-4" />, locked: false },
   ]
 
-  const provincialItems = [
-    { href: '/misiones', label: 'ATM Misiones', icon: <MapPin className="w-5 h-5" />, locked: false },
+  const sections = [
+    {
+      title: 'Facturación y compras',
+      items: [{ href: '/compras', label: 'Compras y gastos', icon: <ShoppingCart className="w-4 h-4" /> }],
+    },
+    {
+      title: 'Impuestos nacionales',
+      items: [
+        { href: '/iva', label: 'DDJJ IVA', icon: <ReceiptText className="w-4 h-4" /> },
+        { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" /> },
+        { href: '/monotributo', label: 'Monotributo', icon: <Layers className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: 'Laboral',
+      items: [
+        { href: '/empleados', label: 'Empleados', icon: <Users className="w-4 h-4" /> },
+        { href: '/sueldos', label: 'Sueldos', icon: <DollarSign className="w-4 h-4" /> },
+        { href: '/cargas-sociales', label: 'Cargas Sociales', icon: <BarChart3 className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: 'Resumen',
+      items: [{ href: '/estado-fiscal', label: 'Estado fiscal integral', icon: <LayoutDashboard className="w-4 h-4" /> }],
+    },
+    {
+      title: 'Impuestos provinciales',
+      items: [{ href: '/misiones', label: 'ATM Misiones', icon: <MapPin className="w-4 h-4" /> }],
+    },
+    {
+      title: 'Docente',
+      items: [{ href: '/configuracion-fiscal', label: 'Config. fiscal', icon: <GraduationCap className="w-4 h-4" /> }],
+    },
   ]
 
   if (!isOpen) return null
@@ -50,45 +85,41 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {items.map(item => (
+
+        <nav className="flex-1 px-3 py-3 overflow-y-auto">
+          {/* Principal */}
+          <p className="px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Principal</p>
+          {mainItems.map(item => (
             <div key={item.href}>
               {item.locked ? (
-                <div className="nav-link nav-link-locked">
-                  {item.icon}
-                  <span className="flex-1">{item.label}</span>
-                  <Lock className="w-3.5 h-3.5" />
+                <div className="nav-link nav-link-locked text-sm py-2">
+                  {item.icon}<span className="flex-1">{item.label}</span><Lock className="w-3 h-3" />
                 </div>
               ) : (
-                <Link
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn('nav-link', pathname.startsWith(item.href) && 'nav-link-active')}
-                >
-                  {item.icon}
-                  <span className="flex-1">{item.label}</span>
+                <Link href={item.href} onClick={onClose} className={cn('nav-link text-sm py-2', pathname.startsWith(item.href) && 'nav-link-active')}>
+                  {item.icon}<span className="flex-1">{item.label}</span>
                 </Link>
               )}
             </div>
           ))}
-        </nav>
-        {/* Sección provincial */}
-        <div className="pt-2">
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Impuestos provinciales</p>
-          {provincialItems.map(item => (
-            <div key={item.href}>
-              <Link
-                href={item.href}
-                onClick={onClose}
-                className={cn('nav-link', pathname.startsWith(item.href) && 'nav-link-active')}
-              >
-                {item.icon}
-                <span className="flex-1">{item.label}</span>
-                <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">NUEVO</span>
-              </Link>
+
+          {/* Secciones fiscales */}
+          {sections.map(section => (
+            <div key={section.title} className="pt-2">
+              <p className="px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{section.title}</p>
+              {section.items.map(item => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={cn('nav-link text-sm py-2', (pathname === item.href || pathname.startsWith(item.href + '/')) && 'nav-link-active')}
+                >
+                  {item.icon}<span className="flex-1">{item.label}</span>
+                </Link>
+              ))}
             </div>
           ))}
-        </div>
+        </nav>
 
         <div className="px-4 py-4 border-t border-slate-100">
           <p className="text-sm font-medium text-slate-700">{userName}</p>
