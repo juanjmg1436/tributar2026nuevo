@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProgress } from '@/types'
-import { LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag, Receipt, History, Lock, X, BookOpen } from 'lucide-react'
+import { LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag, Receipt, History, Lock, X, BookOpen, MapPin } from 'lucide-react'
 
 interface MobileNavProps {
   isOpen: boolean
@@ -27,6 +27,10 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
     { href: '/puntos-venta', label: 'Puntos de venta', icon: <ShoppingBag className="w-5 h-5" />, locked: !progress?.registrationComplete },
     { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-5 h-5" />, locked: !progress?.hasPOS },
     { href: '/historial', label: 'Historial', icon: <History className="w-5 h-5" />, locked: false },
+  ]
+
+  const provincialItems = [
+    { href: '/misiones', label: 'ATM Misiones', icon: <MapPin className="w-5 h-5" />, locked: false },
   ]
 
   if (!isOpen) return null
@@ -68,6 +72,24 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
             </div>
           ))}
         </nav>
+        {/* Sección provincial */}
+        <div className="pt-2">
+          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Impuestos provinciales</p>
+          {provincialItems.map(item => (
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                onClick={onClose}
+                className={cn('nav-link', pathname.startsWith(item.href) && 'nav-link-active')}
+              >
+                {item.icon}
+                <span className="flex-1">{item.label}</span>
+                <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">NUEVO</span>
+              </Link>
+            </div>
+          ))}
+        </div>
+
         <div className="px-4 py-4 border-t border-slate-100">
           <p className="text-sm font-medium text-slate-700">{userName}</p>
           <button onClick={onSignOut} className="mt-2 w-full text-left text-sm text-red-600 hover:underline">

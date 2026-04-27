@@ -7,7 +7,7 @@ import type { UserProgress } from '@/types'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
-  Lock, BookOpen
+  Lock, BookOpen, MapPin
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -84,6 +84,16 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
     },
   ]
 
+  const provincialNavItems: NavItem[] = [
+    {
+      href: '/misiones',
+      label: 'ATM Misiones',
+      icon: <MapPin className="w-5 h-5" />,
+      locked: false,
+      badge: 'NUEVO',
+    },
+  ]
+
   return (
     <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 z-40">
       {/* Logo */}
@@ -124,6 +134,31 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
             </div>
           )
         })}
+
+        {/* Sección impuestos provinciales */}
+        <div className="pt-3 pb-1">
+          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Impuestos provinciales</p>
+          {provincialNavItems.map((item) => {
+            const isActive = pathname.startsWith(item.href)
+            return (
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn('nav-link', isActive && 'nav-link-active')}
+                >
+                  {item.icon}
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {item.badge && !isActive && (
+                    <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                  {isActive && <ChevronRight className="w-4 h-4" />}
+                </Link>
+              </div>
+            )
+          })}
+        </div>
       </nav>
 
       {/* Progress */}

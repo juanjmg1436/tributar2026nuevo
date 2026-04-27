@@ -24,11 +24,27 @@ const PAGE_TITLES: Record<string, string> = {
   '/puntos-venta': 'Puntos de venta',
   '/comprobantes': 'Comprobantes',
   '/historial': 'Historial de acciones',
+  // ATM Misiones
+  '/misiones': 'ATM Misiones Simulado',
+  '/misiones/alta': 'Alta Provincial — Misiones',
+  '/misiones/iibb': 'Ingresos Brutos — DDJJ',
+  '/misiones/iibb/nueva': 'Nueva DDJJ IIBB',
+  '/misiones/boletas': 'Boletas y pagos',
+  '/misiones/otros-tributos': 'Otros tributos provinciales',
+  '/misiones/sr341': 'SR-341 — Agente de retención',
+  '/misiones/cumplimiento': 'Panel de cumplimiento',
+  '/misiones/casos': 'Casos prácticos',
+  '/misiones/admin': 'Panel docente',
 }
 
 export function Header({ userName, unreadNotifications = 0, onMenuToggle, onSignOut }: HeaderProps) {
   const pathname = usePathname()
-  const title = PAGE_TITLES[pathname] || 'TRIBUT.AR'
+  // Exact match first, then prefix match (longest wins)
+  const title = PAGE_TITLES[pathname] ||
+    Object.entries(PAGE_TITLES)
+      .filter(([key]) => pathname.startsWith(key) && key !== '/')
+      .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ||
+    'TRIBUT.AR'
 
   return (
     <header className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 flex items-center justify-between sticky top-[42px] z-30">
