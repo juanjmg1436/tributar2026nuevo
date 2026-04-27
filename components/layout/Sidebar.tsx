@@ -113,7 +113,7 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-slate-200 fixed left-0 top-0 z-40">
+    <aside className="hidden lg:flex flex-col w-64 h-screen bg-white border-r border-slate-200 fixed left-0 top-0 z-40 overflow-hidden">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-100">
         <div className="flex items-center gap-2">
