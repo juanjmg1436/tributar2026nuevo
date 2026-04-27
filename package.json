@@ -21,7 +21,9 @@
     "date-fns": "^3.6.0",
     "lucide-react": "^0.378.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "jspdf": "^2.5.1",
+    "html2canvas": "^1.4.1"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
