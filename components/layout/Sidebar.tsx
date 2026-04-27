@@ -128,7 +128,7 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 py-4 space-y-0.5 overflow-y-auto">
         {/* Sección principal */}
         <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Principal</p>
         {navItems.map(renderItem)}

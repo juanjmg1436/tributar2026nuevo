@@ -86,7 +86,7 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-3 overflow-y-auto">
+        <nav className="flex-1 min-h-0 px-3 py-3 overflow-y-auto">
           {/* Principal */}
           <p className="px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Principal</p>
           {mainItems.map(item => (
