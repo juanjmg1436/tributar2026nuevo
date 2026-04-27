@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
+import { useRegime } from '@/hooks/useRegime'
+import { RegimeGate } from '@/components/ui/RegimeGate'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useFiscalParams } from '@/hooks/useFiscalParams'
 import { calculateIncomeTax } from '@/lib/fiscal-engine/income-tax'
@@ -18,6 +20,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 
 export default function GananciasPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const { params } = useFiscalParams()
   const [loading, setLoading] = useState(true)
@@ -193,10 +196,20 @@ export default function GananciasPage() {
   const inputCls = 'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-slate-50'
   const labelCls = 'block text-xs font-semibold text-slate-600 mb-1'
 
-  if (userLoading || loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+  if (userLoading || loading || regime.loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
 
   return (
     <PageContainer title="Impuesto a las Ganancias" subtitle="DDJJ anual simplificada (simulación didáctica)">
+      {!regime.canUseGanancias && (
+        <RegimeGate
+          moduleName="Impuesto a las Ganancias"
+          reason={regime.gananciasBlockReason!}
+          currentRegime={regime.label}
+          alternativeHref="/monotributo"
+          alternativeLabel="Ir a Monotributo →"
+        />
+      )}
+      {regime.canUseGanancias && (<>
       <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
@@ -362,6 +375,7 @@ export default function GananciasPage() {
       <div className="flex gap-3">
         <a href="/estado-fiscal"><Button variant="outline" size="sm">Estado fiscal integral →</Button></a>
       </div>
+      </>)}
     </PageContainer>
   )
 }

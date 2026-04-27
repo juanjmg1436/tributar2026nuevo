@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { UserProgress } from '@/types'
+import { useRegime } from '@/hooks/useRegime'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
   Lock, BookOpen, MapPin, ShoppingCart, ReceiptText, TrendingUp,
-  Layers, Users, DollarSign, BarChart3, GraduationCap
+  Layers, Users, DollarSign, BarChart3, GraduationCap, Ban
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -32,6 +33,7 @@ interface NavSection {
 
 export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
   const pathname = usePathname()
+  const regime = useRegime()
 
   const navItems: NavItem[] = [
     { href: '/dashboard', label: 'Panel principal', icon: <LayoutDashboard className="w-5 h-5" />, locked: false },
@@ -44,6 +46,11 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
     { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-5 h-5" />, locked: !progress?.hasPOS },
     { href: '/historial', label: 'Historial de acciones', icon: <History className="w-5 h-5" />, locked: false },
   ]
+
+  // Flags de acceso según régimen (defaults permisivos mientras carga)
+  const canIVA = regime.loading || regime.canUseIVA
+  const canGanancias = regime.loading || regime.canUseGanancias
+  const canMono = regime.loading || regime.canUseMonotributo
 
   const fiscalSections: NavSection[] = [
     {
@@ -71,7 +78,7 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
     {
       title: 'Resumen',
       items: [
-        { href: '/estado-fiscal', label: 'Estado fiscal integral', icon: <LayoutDashboard className="w-4 h-4" />, locked: false, badge: 'NUEVO' },
+        { href: '/estado-fiscal', label: 'Estado fiscal integral', icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
       ],
     },
     {
@@ -88,8 +95,18 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
     },
   ]
 
+  // Determina si un ítem está restringido por régimen (visible pero atenuado)
+  function isRegimeRestricted(href: string): boolean {
+    if (regime.loading) return false
+    if (href === '/iva') return !regime.canUseIVA
+    if (href === '/ganancias') return !regime.canUseGanancias
+    if (href === '/monotributo') return !regime.canUseMonotributo
+    return false
+  }
+
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard')
+    const restricted = isRegimeRestricted(item.href)
     return (
       <div key={item.href}>
         {item.locked ? (
@@ -99,10 +116,19 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
             <Lock className="w-3.5 h-3.5 text-slate-400" />
           </div>
         ) : (
-          <Link href={item.href} className={cn('nav-link', isActive && 'nav-link-active')}>
-            {item.icon}
-            <span className="flex-1 truncate">{item.label}</span>
-            {item.badge && !isActive && (
+          <Link
+            href={item.href}
+            className={cn(
+              'nav-link',
+              isActive && 'nav-link-active',
+              restricted && !isActive && 'opacity-50'
+            )}
+            title={restricted ? 'No aplica a tu régimen fiscal' : undefined}
+          >
+            <span className={cn(restricted && 'text-slate-400')}>{item.icon}</span>
+            <span className={cn('flex-1 truncate', restricted && 'text-slate-400')}>{item.label}</span>
+            {restricted && !isActive && <Ban className="w-3 h-3 text-slate-300" />}
+            {item.badge && !isActive && !restricted && (
               <span className="text-[9px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full">{item.badge}</span>
             )}
             {isActive && <ChevronRight className="w-4 h-4" />}
@@ -114,10 +140,10 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
 
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen bg-white border-r border-slate-200 fixed left-0 top-0 z-40 overflow-hidden">
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center">
+      {/* Logo + régimen */}
+      <div className="px-4 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center flex-shrink-0">
             <BookOpen className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -125,6 +151,23 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
             <p className="text-[10px] text-slate-500 leading-tight">Simulador Educativo</p>
           </div>
         </div>
+        {!regime.loading && regime.regime !== 'no_definido' && (
+          <div className={cn(
+            'text-[10px] font-bold px-2 py-1 rounded-lg text-center w-full',
+            regime.regime === 'monotributista'
+              ? 'bg-amber-100 text-amber-700'
+              : regime.regime === 'empresa'
+              ? 'bg-purple-100 text-purple-700'
+              : 'bg-emerald-100 text-emerald-700'
+          )}>
+            {regime.label}
+          </div>
+        )}
+        {!regime.loading && regime.regime === 'no_definido' && (
+          <div className="text-[10px] font-bold px-2 py-1 rounded-lg text-center w-full bg-slate-100 text-slate-500">
+            Régimen no definido
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

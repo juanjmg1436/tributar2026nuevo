@@ -8,7 +8,8 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { currentPeriod, formatPeriod, calcComplianceScore } from '@/lib/fiscal-engine'
-import { AlertTriangle, CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, RefreshCw, CreditCard } from 'lucide-react'
+import { useRegime } from '@/hooks/useRegime'
+import { AlertTriangle, CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, RefreshCw, CreditCard, Layers, ReceiptText } from 'lucide-react'
 
 type ObligationStatus = 'ok' | 'pending' | 'overdue' | 'not_applicable'
 
@@ -46,6 +47,7 @@ function StatusBadge({ status }: { status: ObligationStatus | string }) {
 
 export default function EstadoFiscalPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [period] = useState(currentPeriod())
@@ -110,6 +112,46 @@ export default function EstadoFiscalPage() {
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
       </div>
 
+      {/* Régimen activo */}
+      {!regime.loading && (
+        <div className={`mb-5 p-4 rounded-xl border-2 flex flex-wrap items-center gap-4 ${
+          regime.regime === 'monotributista' ? 'bg-amber-50 border-amber-300' :
+          regime.regime === 'empresa' ? 'bg-purple-50 border-purple-300' :
+          regime.regime === 'responsable_inscripto' ? 'bg-emerald-50 border-emerald-300' :
+          'bg-slate-50 border-slate-200'
+        }`}>
+          <div className="flex items-center gap-3 flex-1">
+            {regime.regime === 'monotributista'
+              ? <Layers className="w-6 h-6 text-amber-600" />
+              : <ReceiptText className="w-6 h-6 text-emerald-600" />}
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Régimen fiscal detectado</p>
+              <p className={`text-base font-bold ${
+                regime.regime === 'monotributista' ? 'text-amber-700' :
+                regime.regime === 'empresa' ? 'text-purple-700' :
+                'text-emerald-700'
+              }`}>{regime.label}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {[
+              { label: 'IVA', active: regime.canUseIVA },
+              { label: 'Ganancias', active: regime.canUseGanancias },
+              { label: 'Monotributo', active: regime.canUseMonotributo },
+              { label: 'Laboral', active: regime.canUseLaboral },
+              { label: 'IIBB', active: true },
+            ].map(({ label, active }) => (
+              <span key={label} className={`px-2 py-0.5 rounded-full font-semibold ${
+                active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400 line-through'
+              }`}>
+                {label}
+              </span>
+            ))}
+          </div>
+          <a href="/configuracion-fiscal" className="text-xs text-primary-600 hover:underline">Cambiar régimen →</a>
+        </div>
+      )}
+
       {/* Score general */}
       <Card padding="md" className="mb-5">
         <div className="flex items-center justify-between mb-4">
@@ -147,21 +189,24 @@ export default function EstadoFiscalPage() {
       {/* Obligaciones por módulo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
         {/* IVA */}
-        <Card padding="md" className={`border-l-4 ${vatRes ? (vatRes.status === 'paid' ? 'border-l-emerald-400' : vatRes.status === 'credit' ? 'border-l-blue-400' : 'border-l-amber-400') : isMonotributista ? 'border-l-slate-200' : 'border-l-slate-300'}`}>
+        <Card padding="md" className={`border-l-4 ${
+          !regime.canUseIVA ? 'border-l-slate-200 opacity-60' :
+          vatRes?.status === 'paid' ? 'border-l-emerald-400' :
+          vatRes?.status === 'credit' ? 'border-l-blue-400' :
+          vatRes ? 'border-l-amber-400' : 'border-l-slate-300'
+        }`}>
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <StatusIcon status={vatRes?.status || (isMonotributista ? 'not_applicable' : 'pending')} />
+              <StatusIcon status={vatRes?.status || (!regime.canUseIVA ? 'not_applicable' : 'pending')} />
               <p className="text-sm font-semibold text-slate-700">IVA</p>
             </div>
-            <StatusBadge status={vatRes?.status || (isMonotributista ? 'not_applicable' : 'pending')} />
+            <StatusBadge status={vatRes?.status || (!regime.canUseIVA ? 'not_applicable' : 'pending')} />
           </div>
-          {isMonotributista && !vatRes && (
-            <p className="text-xs text-slate-500">No aplica (Monotributo incluye IVA en la cuota).</p>
-          )}
-          {!isMonotributista && !vatRes && (
+          {!regime.canUseIVA ? (
+            <p className="text-xs text-slate-400 italic">Incluido en cuota Monotributo — no presenta DDJJ separada.</p>
+          ) : !vatRes ? (
             <p className="text-xs text-amber-600">DDJJ de {formatPeriod(period)} sin presentar.</p>
-          )}
-          {vatRes && (
+          ) : (
             <>
               <p className="text-xs text-slate-600">{vatRes.net_payable > 0 ? `A pagar: ${formatCurrency(vatRes.net_payable)}` : `Saldo a favor: ${formatCurrency(vatRes.credit_balance)}`}</p>
               {vatRes.due_date && <p className="text-xs text-slate-400">Vence: {formatDate(vatRes.due_date)}</p>}
@@ -171,22 +216,26 @@ export default function EstadoFiscalPage() {
         </Card>
 
         {/* Monotributo */}
-        <Card padding="md" className={`border-l-4 ${monoPayment?.status === 'paid' ? 'border-l-emerald-400' : monoProfile ? 'border-l-amber-400' : 'border-l-slate-200'}`}>
+        <Card padding="md" className={`border-l-4 ${
+          !regime.canUseMonotributo ? 'border-l-slate-200 opacity-60' :
+          monoPayment?.status === 'paid' ? 'border-l-emerald-400' :
+          monoProfile ? 'border-l-amber-400' : 'border-l-slate-200'
+        }`}>
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <StatusIcon status={monoPayment?.status || (monoProfile ? 'pending' : 'not_applicable')} />
+              <StatusIcon status={monoPayment?.status || (!regime.canUseMonotributo ? 'not_applicable' : monoProfile ? 'pending' : 'not_applicable')} />
               <p className="text-sm font-semibold text-slate-700">Monotributo</p>
             </div>
-            <StatusBadge status={monoPayment?.status || (monoProfile ? 'pending' : 'not_applicable')} />
+            <StatusBadge status={monoPayment?.status || (!regime.canUseMonotributo ? 'not_applicable' : monoProfile ? 'pending' : 'not_applicable')} />
           </div>
-          {monoProfile ? (
+          {!regime.canUseMonotributo ? (
+            <p className="text-xs text-slate-400 italic">No aplica — régimen {regime.label} es incompatible con Monotributo.</p>
+          ) : monoProfile ? (
             <>
               <p className="text-xs text-slate-600">Categoría {monoProfile.category_code} · {monoProfile.activity_type}</p>
-              {monoPayment ? (
-                <p className="text-xs text-slate-600">Cuota {formatPeriod(period)}: {formatCurrency(monoPayment.total_amount)}</p>
-              ) : (
-                <p className="text-xs text-amber-600">Cuota de {formatPeriod(period)} sin pagar.</p>
-              )}
+              {monoPayment
+                ? <p className="text-xs text-slate-600">Cuota {formatPeriod(period)}: {formatCurrency(monoPayment.total_amount)}</p>
+                : <p className="text-xs text-amber-600">Cuota de {formatPeriod(period)} sin pagar.</p>}
             </>
           ) : (
             <p className="text-xs text-slate-500">No hay perfil monotributista configurado.</p>
@@ -195,15 +244,21 @@ export default function EstadoFiscalPage() {
         </Card>
 
         {/* Ganancias */}
-        <Card padding="md" className={`border-l-4 ${incomeTax?.status === 'paid' ? 'border-l-emerald-400' : incomeTax ? 'border-l-amber-400' : 'border-l-slate-200'}`}>
+        <Card padding="md" className={`border-l-4 ${
+          !regime.canUseGanancias ? 'border-l-slate-200 opacity-60' :
+          incomeTax?.status === 'paid' ? 'border-l-emerald-400' :
+          incomeTax ? 'border-l-amber-400' : 'border-l-slate-200'
+        }`}>
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <StatusIcon status={incomeTax?.status || 'not_applicable'} />
+              <StatusIcon status={incomeTax?.status || (!regime.canUseGanancias ? 'not_applicable' : 'not_applicable')} />
               <p className="text-sm font-semibold text-slate-700">Ganancias</p>
             </div>
             <StatusBadge status={incomeTax?.status || 'not_applicable'} />
           </div>
-          {incomeTax ? (
+          {!regime.canUseGanancias ? (
+            <p className="text-xs text-slate-400 italic">Incluido en cuota Monotributo — no presenta DDJJ anual.</p>
+          ) : incomeTax ? (
             <>
               <p className="text-xs text-slate-600">Ejercicio {incomeTax.fiscal_year} · {formatCurrency(incomeTax.net_payable)} a ingresar</p>
               <p className="text-xs text-slate-400">Vence: {formatDate(incomeTax.due_date)}</p>

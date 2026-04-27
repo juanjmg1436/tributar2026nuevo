@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
+import { useRegime } from '@/hooks/useRegime'
+import { RegimeGate } from '@/components/ui/RegimeGate'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { calculateVat } from '@/lib/fiscal-engine/vat'
 import { calcVatDueDate, formatPeriod, generateVepNumber, generateComprobanteNumber } from '@/lib/fiscal-engine'
@@ -25,6 +27,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 
 export default function IvaPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const [filterPeriod, setFilterPeriod] = useState(currentPeriodStr())
   const [loading, setLoading] = useState(true)
@@ -179,10 +182,20 @@ export default function IvaPage() {
   const isSubmitted = returnStatus === 'submitted' || returnStatus === 'credit'
   const vepPaid = existingVep?.status === 'paid'
 
-  if (userLoading || loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+  if (userLoading || loading || regime.loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
 
   return (
     <PageContainer title="DDJJ IVA" subtitle="Declaración jurada mensual de IVA (simulación didáctica)">
+      {!regime.canUseIVA && (
+        <RegimeGate
+          moduleName="DDJJ IVA mensual"
+          reason={regime.ivaBlockReason!}
+          currentRegime={regime.label}
+          alternativeHref="/monotributo"
+          alternativeLabel="Ir a Monotributo →"
+        />
+      )}
+      {regime.canUseIVA && (<>
       {/* Disclaimer */}
       <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
@@ -509,6 +522,7 @@ export default function IvaPage() {
         <a href="/compras"><Button variant="outline" size="sm">← Ver compras</Button></a>
         <a href="/estado-fiscal"><Button variant="outline" size="sm">Estado fiscal integral →</Button></a>
       </div>
+      </>)}
     </PageContainer>
   )
 }

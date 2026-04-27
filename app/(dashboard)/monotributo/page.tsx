@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
+import { useRegime } from '@/hooks/useRegime'
+import { RegimeGate } from '@/components/ui/RegimeGate'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { suggestMonotributoCategory, calculateMonotributoQuota, checkRecategorizacion } from '@/lib/fiscal-engine/monotributo'
 import { formatPeriod, currentPeriod, generateVepNumber, generateComprobanteNumber } from '@/lib/fiscal-engine'
@@ -18,6 +20,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 
 export default function MonotributoPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -172,10 +175,20 @@ export default function MonotributoPage() {
 
   const periodPayment = payments.find(p => p.period === selectedPeriod)
 
-  if (userLoading || loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+  if (userLoading || loading || regime.loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
 
   return (
     <PageContainer title="Monotributo" subtitle="Categorías, cuotas mensuales y recategorización (simulación didáctica)">
+      {!regime.canUseMonotributo && (
+        <RegimeGate
+          moduleName="Monotributo"
+          reason={regime.monotributoBlockReason!}
+          currentRegime={regime.label}
+          alternativeHref="/iva"
+          alternativeLabel="Ir a DDJJ IVA →"
+        />
+      )}
+      {regime.canUseMonotributo && (<>
       {/* Disclaimer */}
       <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
@@ -391,6 +404,7 @@ export default function MonotributoPage() {
           </div>
         </>
       )}
+      </>)}
     </PageContainer>
   )
 }

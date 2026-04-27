@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
+import { useRegime } from '@/hooks/useRegime'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { ShoppingCart, Plus, Trash2, AlertTriangle, RefreshCw, Info } from 'lucide-react'
 import type { Purchase } from '@/types/fiscal'
@@ -19,6 +20,7 @@ const currentPeriod = () => {
 
 export default function ComprasPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
@@ -125,15 +127,27 @@ export default function ComprasPage() {
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
       </div>
 
-      {/* Info pedagógica */}
-      <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">
-        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          <strong>¿Para qué sirve este módulo?</strong> Las compras y gastos generan <em>crédito fiscal IVA</em> que se descuenta del débito fiscal de las ventas.
-          Solo las facturas A de proveedores inscritos generan crédito fiscal computable. Las facturas B, C o tickets no discriminan IVA y no son computables.
-          Este registro alimenta automáticamente la DDJJ de IVA.
-        </p>
-      </div>
+      {/* Info pedagógica — cambia según régimen */}
+      {!regime.loading && regime.regime === 'monotributista' ? (
+        <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3">
+          <Info className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 leading-relaxed">
+            <strong>Monotributista:</strong> Podés registrar tus compras y gastos para llevar un control interno,
+            pero <strong>el IVA de estas compras NO genera crédito fiscal</strong> porque como Monotributista
+            ya pagás una cuota fija que reemplaza el IVA. El campo "IVA computable" no aplica a tu régimen.
+            Este registro es útil para calcular tu rentabilidad y para posibles migraciones a RI.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">
+          <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-700 leading-relaxed">
+            <strong>¿Para qué sirve este módulo?</strong> Las compras y gastos generan <em>crédito fiscal IVA</em> que se descuenta del débito fiscal de las ventas.
+            Solo las facturas A de proveedores inscritos generan crédito fiscal computable. Las facturas B, C o tickets no discriminan IVA y no son computables.
+            Este registro alimenta automáticamente la DDJJ de IVA.
+          </p>
+        </div>
+      )}
 
       {/* Período y acciones */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
