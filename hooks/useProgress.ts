@@ -88,15 +88,23 @@ export function useProgress(userId: string | null) {
       const hasPurchase = (purchaseRes.data?.length || 0) > 0
 
       // ── Etapa 7: DDJJ ───────────────────────────────────────────────────────
-      const [vatRes, monoProfileRes, monoPayRes, incomeTaxRes, vepRes] = await Promise.all([
+      const [vatRes, monoProfileRes, monoRegimeRes, monoPayRes, incomeTaxRes, vepRes] = await Promise.all([
         db.from('vat_returns').select('id').eq('user_id', userId).in('status', ['submitted', 'paid', 'credit']).limit(1),
         db.from('monotributo_profiles').select('id').eq('user_id', userId).eq('status', 'active').maybeSingle(),
+        // También considerar activo en taxpayer_regime_status con code=MONOTRIBUTO
+        supabase.from('taxpayer_regime_status')
+          .select('id, tax_regimes(code)')
+          .eq('user_id', userId)
+          .eq('status', 'active'),
         db.from('monotributo_payments').select('id').eq('user_id', userId).eq('status', 'paid').limit(1),
         db.from('income_tax_returns').select('id').eq('user_id', userId).in('status', ['submitted', 'paid']).limit(1),
         db.from('simulated_veps').select('id').eq('user_id', userId).eq('status', 'paid').limit(1),
       ])
       const hasVatReturn = (vatRes.data?.length || 0) > 0
-      const hasMonoProfile = !!monoProfileRes.data
+      const monoInRegimeStatus = (monoRegimeRes.data || []).some(
+        (s: any) => s.tax_regimes?.code === 'MONOTRIBUTO'
+      )
+      const hasMonoProfile = !!monoProfileRes.data || monoInRegimeStatus
       const hasMonoPayment = (monoPayRes.data?.length || 0) > 0
       const hasIncomeTaxReturn = (incomeTaxRes.data?.length || 0) > 0
       const hasAnyFiscalPayment = (vepRes.data?.length || 0) > 0

@@ -3,10 +3,12 @@
 /**
  * useRegime — Determina el régimen fiscal del usuario en el simulador.
  *
- * Lógica de detección:
- *  - Si existe un monotributo_profile activo → Monotributista
- *  - Si subject_type === 'persona_juridica' → Empresa (RI automático)
- *  - En otro caso → Responsable Inscripto (persona humana)
+ * Lógica de detección (por orden de precedencia):
+ *  1. taxpayer_regime_status con code=MONOTRIBUTO activo → Monotributista
+ *     (incluye también si existe monotributo_profile activo)
+ *  2. subject_type === 'persona_juridica' → Empresa (RI automático)
+ *  3. taxpayer_regime_status con code=REGIMEN_GENERAL activo → Responsable Inscripto
+ *  4. Sin régimen definido → no_definido
  *
  * Impacto por régimen:
  *  MONOTRIBUTISTA
@@ -55,11 +57,11 @@ export interface RegimeInfo {
   monotributoBlockReason: string | null
 }
 
-const NO_DEFINIDO: RegimeInfo = {
+const LOADING_STATE: RegimeInfo = {
   regime: 'no_definido',
-  label: 'Régimen no definido',
+  label: 'Cargando...',
   subjectType: null,
-  loading: false,
+  loading: true,
   canUseIVA: true,
   canUseGanancias: true,
   canUseMonotributo: true,
@@ -73,33 +75,62 @@ const NO_DEFINIDO: RegimeInfo = {
 export function useRegime(): RegimeInfo {
   const { user, taxpayerProfile, loading: userLoading } = useUser()
   const supabase = createClient()
+
+  // Regímenes activos en taxpayer_regime_status (con su code)
+  const [activeRegimeCodes, setActiveRegimeCodes] = useState<string[]>([])
+  // Perfil de monotributo (para saber si completó el wizard)
   const [monoProfile, setMonoProfile] = useState<any>(null)
-  const [loadingMono, setLoadingMono] = useState(true)
+  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
-    if (!user) { setLoadingMono(false); return }
-    ;(supabase as any)
-      .from('monotributo_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle()
-      .then(({ data }: any) => {
-        setMonoProfile(data || null)
-        setLoadingMono(false)
-      })
+    if (!user) { setLoadingData(false); return }
+
+    async function load() {
+      setLoadingData(true)
+      try {
+        const [statusRes, monoRes] = await Promise.all([
+          // Activos en taxpayer_regime_status con el code del régimen
+          supabase
+            .from('taxpayer_regime_status')
+            .select('regime_id, tax_regimes(code)')
+            .eq('user_id', user!.id)
+            .eq('status', 'active'),
+          // Perfil de monotributo activo
+          (supabase as any)
+            .from('monotributo_profiles')
+            .select('id')
+            .eq('user_id', user!.id)
+            .eq('status', 'active')
+            .maybeSingle(),
+        ])
+
+        const codes: string[] = (statusRes.data || [])
+          .map((s: any) => s.tax_regimes?.code)
+          .filter(Boolean)
+
+        setActiveRegimeCodes(codes)
+        setMonoProfile(monoRes.data || null)
+      } catch {
+        // silently ignore
+      } finally {
+        setLoadingData(false)
+      }
+    }
+
+    load()
   }, [user])
 
-  const loading = userLoading || loadingMono
-
-  if (loading) {
-    return { ...NO_DEFINIDO, loading: true }
+  if (userLoading || loadingData) {
+    return LOADING_STATE
   }
 
   const subjectType = (taxpayerProfile?.subject_type as 'persona_humana' | 'persona_juridica' | null) ?? null
+  const isMonotributista = activeRegimeCodes.includes('MONOTRIBUTO') || !!monoProfile
+  const isRegimeGeneral = activeRegimeCodes.includes('REGIMEN_GENERAL')
+  const hasAnyActiveRegime = activeRegimeCodes.length > 0
 
   // ── Monotributista ────────────────────────────────────────────────────────────
-  if (monoProfile) {
+  if (isMonotributista) {
     return {
       regime: 'monotributista',
       label: 'Monotributista',
@@ -122,7 +153,7 @@ export function useRegime(): RegimeInfo {
     }
   }
 
-  // ── Empresa (Persona Jurídica RI) ─────────────────────────────────────────────
+  // ── Empresa (Persona Jurídica) ─────────────────────────────────────────────────
   if (subjectType === 'persona_juridica') {
     return {
       regime: 'empresa',
@@ -143,22 +174,40 @@ export function useRegime(): RegimeInfo {
     }
   }
 
-  // ── Responsable Inscripto (Persona Humana) ────────────────────────────────────
+  // ── Responsable Inscripto (Persona Humana con Régimen General activo) ──────────
+  if (isRegimeGeneral || (hasAnyActiveRegime && !isMonotributista)) {
+    return {
+      regime: 'responsable_inscripto',
+      label: 'Responsable Inscripto',
+      subjectType,
+      loading: false,
+      canUseIVA: true,
+      canUseGanancias: true,
+      canUseMonotributo: false,
+      canUseComprasCredito: true,
+      canUseLaboral: true,
+      ivaBlockReason: null,
+      gananciasBlockReason: null,
+      monotributoBlockReason:
+        'Estás inscripto como Responsable Inscripto en IVA. ' +
+        'Los Responsables Inscriptos no pueden adherirse al Monotributo simultáneamente. ' +
+        'Para pasarte al Monotributo debés darte de baja en IVA y cumplir los límites de ingresos.',
+    }
+  }
+
+  // ── Sin régimen definido ───────────────────────────────────────────────────────
   return {
-    regime: 'responsable_inscripto',
-    label: 'Responsable Inscripto',
+    regime: 'no_definido',
+    label: 'Régimen no definido',
     subjectType,
     loading: false,
     canUseIVA: true,
     canUseGanancias: true,
-    canUseMonotributo: false,
+    canUseMonotributo: true,
     canUseComprasCredito: true,
     canUseLaboral: true,
     ivaBlockReason: null,
     gananciasBlockReason: null,
-    monotributoBlockReason:
-      'Estás inscripto como Responsable Inscripto en IVA. ' +
-      'Los Responsables Inscriptos no pueden adherirse al Monotributo simultáneamente. ' +
-      'Para pasarte al Monotributo debés darte de baja en IVA y cumplir los límites de ingresos.',
+    monotributoBlockReason: null,
   }
 }
