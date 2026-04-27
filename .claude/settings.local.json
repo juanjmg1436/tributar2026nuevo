@@ -19,7 +19,11 @@
       "WebFetch(domain:www.afip.gob.ar)",
       "WebFetch(domain:estudiodelamo.com)",
       "mcp__c0e40e89-022e-4bdb-bb96-a1032af1723f__list_projects",
-      "mcp__c0e40e89-022e-4bdb-bb96-a1032af1723f__apply_migration"
+      "mcp__c0e40e89-022e-4bdb-bb96-a1032af1723f__apply_migration",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(npx next *)"
     ]
   }
 }

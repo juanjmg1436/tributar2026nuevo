@@ -198,7 +198,7 @@ export function Sidebar({ progress, onSignOut, userName }: SidebarProps) {
               style={{ width: `${progress.completionPercentage}%` }}
             />
           </div>
-          <p className="text-xs text-slate-400 mt-1.5">Etapa {progress.currentStage} de 6</p>
+          <p className="text-xs text-slate-400 mt-1.5">Etapa {progress.currentStage} de 10</p>
         </div>
       )}
 

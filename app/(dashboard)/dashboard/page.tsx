@@ -18,15 +18,18 @@ import { useNotifications } from '@/hooks/useNotifications'
 import {
   ArrowRight, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, CheckCircle2, AlertCircle,
-  Clock, TrendingUp
+  Clock, TrendingUp, ShoppingCart, ReceiptText, Users,
+  BarChart3, MapPin, LayoutDashboard
 } from 'lucide-react'
+import type { ProgressDetail } from '@/hooks/useProgress'
 import type { TaxpayerProfile } from '@/types'
 import { formatDate } from '@/lib/utils'
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user, profile, loading: userLoading } = useUser()
-  const { progress, stages, loading: progressLoading } = useProgress(user?.id ?? null)
+  const { progress: progressRaw, stages, loading: progressLoading } = useProgress(user?.id ?? null)
+  const progress = progressRaw as ProgressDetail | null
   const { notifications, unreadCount, markAsRead } = useNotifications(user?.id ?? null)
   const [taxpayer, setTaxpayer] = useState<TaxpayerProfile | null>(null)
   const [activeRegimeName, setActiveRegimeName] = useState<string | null>(null)
@@ -104,6 +107,46 @@ export default function DashboardPage() {
       icon: <ShoppingBag className="w-5 h-5 text-primary-600" />,
       done: progress?.hasPOS ?? false,
       locked: !progress?.registrationComplete,
+    },
+    {
+      title: 'Registrar compras y gastos',
+      description: 'Cargá tus compras para el cómputo del crédito fiscal',
+      href: '/compras',
+      icon: <ShoppingCart className="w-5 h-5 text-primary-600" />,
+      done: progress?.hasPurchase ?? false,
+      locked: !progress?.hasPOS,
+    },
+    {
+      title: 'Presentar declaración jurada',
+      description: 'IVA, Monotributo o Ganancias según tu régimen',
+      href: '/iva',
+      icon: <ReceiptText className="w-5 h-5 text-primary-600" />,
+      done: (progress?.hasVatReturn || progress?.hasMonoPayment) ?? false,
+      locked: !progress?.hasPOS,
+    },
+    {
+      title: 'Módulo laboral',
+      description: 'Alta de empleados, sueldos y cargas sociales (F.931)',
+      href: '/empleados',
+      icon: <Users className="w-5 h-5 text-primary-600" />,
+      done: (progress?.hasEmployer && progress?.hasEmployee && progress?.hasPayrollRun && progress?.hasSocialSecurityReturn) ?? false,
+      locked: !(progress?.hasVatReturn || progress?.hasMonoPayment),
+    },
+    {
+      title: 'Impuestos provinciales (ATM Misiones)',
+      description: 'Alta en IIBB, presentación y pago provincial',
+      href: '/misiones',
+      icon: <MapPin className="w-5 h-5 text-primary-600" />,
+      done: (progress?.hasProvincialProfile && progress?.hasIIBBReturn) ?? false,
+      locked: !progress?.hasEFiscalAddress,
+    },
+    {
+      title: 'Estado fiscal integral',
+      description: 'Revisá tu puntaje de cumplimiento global',
+      href: '/estado-fiscal',
+      icon: <LayoutDashboard className="w-5 h-5 text-primary-600" />,
+      done: (progress?.completionPercentage ?? 0) >= 80,
+      locked: false,
     },
   ]
 
@@ -221,7 +264,11 @@ export default function DashboardPage() {
               {[
                 { href: '/estado-cuenta', label: 'Estado de cuenta', icon: <CreditCard className="w-4 h-4" />, locked: !progress?.registrationComplete },
                 { href: '/comprobantes', label: 'Comprobantes', icon: <Receipt className="w-4 h-4" />, locked: !progress?.hasPOS },
-                { href: '/puntos-venta', label: 'Puntos de venta', icon: <ShoppingBag className="w-4 h-4" />, locked: !progress?.registrationComplete },
+                { href: '/compras', label: 'Compras', icon: <ShoppingCart className="w-4 h-4" />, locked: !progress?.hasPOS },
+                { href: '/iva', label: 'DDJJ IVA', icon: <ReceiptText className="w-4 h-4" />, locked: !progress?.hasPOS },
+                { href: '/empleados', label: 'Empleados', icon: <Users className="w-4 h-4" />, locked: false },
+                { href: '/misiones', label: 'ATM Misiones', icon: <MapPin className="w-4 h-4" />, locked: false },
+                { href: '/estado-fiscal', label: 'Estado fiscal', icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
                 { href: '/historial', label: 'Historial', icon: <FileText className="w-4 h-4" />, locked: false },
               ].map((item, i) => (
                 item.locked ? (
