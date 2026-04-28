@@ -94,11 +94,11 @@ export default function HomePage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight mb-6">
-              Entendé el sistema{' '}
+              Dominá el sistema{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-400 to-blue-300">
                 fiscal argentino
               </span>
-              {' '}sin miedo.
+              {' '}con confianza.
             </h1>
 
             <p className="text-lg sm:text-xl text-blue-200 leading-relaxed mb-10 max-w-2xl mx-auto">
