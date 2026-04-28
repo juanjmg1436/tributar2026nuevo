@@ -45,7 +45,7 @@ export default function HomePage() {
             />
             <div className="flex flex-col leading-none">
               <span className="text-2xl font-extrabold text-primary-900 tracking-tight">TRIBUT.AR</span>
-              <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">by Simul.Ar</span>
+              <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">un producto de Simul.Ar</span>
             </div>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>
           </div>
@@ -95,7 +95,7 @@ export default function HomePage() {
               />
               <div className="text-left">
                 <p className="text-4xl font-extrabold text-white tracking-tight leading-none">TRIBUT.AR</p>
-                <p className="text-sm font-semibold text-blue-300 tracking-widest uppercase mt-1">by Simul.Ar</p>
+                <p className="text-sm font-semibold text-blue-300 tracking-widest uppercase mt-1">un producto de Simul.Ar</p>
               </div>
             </div>
 
@@ -588,7 +588,7 @@ export default function HomePage() {
                 />
                 <div>
                   <p className="text-white font-extrabold text-base leading-none">TRIBUT.AR</p>
-                  <p className="text-slate-500 text-[10px] font-semibold tracking-widest uppercase leading-none mt-0.5">by Simul.Ar</p>
+                  <p className="text-slate-500 text-[10px] font-semibold tracking-widest uppercase leading-none mt-0.5">un producto de Simul.Ar</p>
                 </div>
               </div>
               <p className="text-sm leading-relaxed text-slate-400">
