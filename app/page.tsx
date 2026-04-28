@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { AuthorSection } from '@/components/landing/AuthorSection'
+import { LogoIcon } from '@/components/ui/LogoIcon'
 import {
   BookOpen,
   GraduationCap,
@@ -36,13 +36,7 @@ export default function HomePage() {
       <nav className="sticky top-[42px] z-40 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image
-              src="/images/logo-tributar.png"
-              alt="TRIBUT.AR"
-              width={44}
-              height={44}
-              className="rounded-xl object-contain drop-shadow-sm"
-            />
+            <LogoIcon size={44} className="drop-shadow-sm flex-shrink-0" />
             <div className="flex flex-col leading-none">
               <span className="text-2xl font-extrabold text-primary-900 tracking-tight">TRIBUT.AR</span>
               <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">un producto de Simul.Ar</span>
@@ -86,13 +80,7 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             {/* Logo hero */}
             <div className="flex items-center justify-center gap-4 mb-8">
-              <Image
-                src="/images/logo-tributar.png"
-                alt="TRIBUT.AR"
-                width={72}
-                height={72}
-                className="rounded-2xl object-contain drop-shadow-xl"
-              />
+              <LogoIcon size={72} className="drop-shadow-xl flex-shrink-0" />
               <div className="text-left">
                 <p className="text-4xl font-extrabold text-white tracking-tight leading-none">TRIBUT.AR</p>
                 <p className="text-sm font-semibold text-blue-300 tracking-widest uppercase mt-1">un producto de Simul.Ar</p>
@@ -579,13 +567,7 @@ export default function HomePage() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2.5 mb-3">
-                <Image
-                  src="/images/logo-tributar.png"
-                  alt="TRIBUT.AR"
-                  width={32}
-                  height={32}
-                  className="rounded-lg object-contain"
-                />
+                <LogoIcon size={32} className="flex-shrink-0" />
                 <div>
                   <p className="text-white font-extrabold text-base leading-none">TRIBUT.AR</p>
                   <p className="text-slate-500 text-[10px] font-semibold tracking-widest uppercase leading-none mt-0.5">un producto de Simul.Ar</p>
