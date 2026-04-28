@@ -10,9 +10,11 @@ import { Badge, RegimeBadge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { formatDate } from '@/lib/utils'
+import { CertificadoModal } from '@/components/certificados/CertificadoModal'
+import type { CertificadoData } from '@/components/certificados/CertificadoRegimen'
 import {
   CheckCircle2, XCircle, AlertTriangle, Info, ChevronDown, ChevronUp,
-  Users, Home, Briefcase, TrendingUp, Building2, Lock
+  Users, Home, Briefcase, TrendingUp, Building2, Lock, FileText
 } from 'lucide-react'
 import type { TaxRegime, TaxpayerRegimeStatus, TaxpayerProfile } from '@/types'
 
@@ -27,7 +29,29 @@ export default function AdministradorRelacionesPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [expandedRegime, setExpandedRegime] = useState<string | null>(null)
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(false)
+  const [certData, setCertData] = useState<CertificadoData | null>(null)
   const supabase = createClient()
+
+  /** Genera el número de certificado simulado */
+  function buildCertNumber(code: string, cuit: string, date: string) {
+    const year = date?.split('-')[0] ?? new Date().getFullYear()
+    const suffix = (cuit.replace(/-/g, '').slice(-6))
+    const prefix = code.slice(0, 4).toUpperCase()
+    return `${prefix}-${year}-${suffix}`
+  }
+
+  function openCertificate(regime: TaxRegime, status: TaxpayerRegimeStatus) {
+    if (!taxpayer) return
+    setCertData({
+      entityName: taxpayer.entity_name,
+      cuit: taxpayer.cuit,
+      subjectType: taxpayer.subject_type as 'persona_humana' | 'persona_juridica',
+      regimeCode: regime.code,
+      regimeName: regime.name,
+      startDate: status.start_date,
+      certNumber: buildCertNumber(regime.code, taxpayer.cuit, status.start_date),
+    })
+  }
 
   useEffect(() => {
     if (!user) return
@@ -179,6 +203,10 @@ export default function AdministradorRelacionesPage() {
   }
 
   return (
+    <>
+    {certData && (
+      <CertificadoModal data={certData} onClose={() => setCertData(null)} />
+    )}
     <PageContainer
       title="Administrador de relaciones"
       subtitle="Gestioná tus altas, bajas y modificaciones en regímenes tributarios."
@@ -247,16 +275,26 @@ export default function AdministradorRelacionesPage() {
                       Estás actualmente activo en este régimen. Si te dás de baja, las obligaciones pendientes seguirán existiendo hasta ser regularizadas.
                     </Alert>
                   )}
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-wrap">
                     {!isActive && check.allowed && (
                       <Button onClick={() => activateRegime(regime)} loading={isLoading} size="sm">
                         <CheckCircle2 className="w-4 h-4 mr-1" /> Darme de alta
                       </Button>
                     )}
                     {isActive && (
-                      <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
-                        <XCircle className="w-4 h-4 mr-1" /> Darme de baja
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openCertificate(regime, status!)}
+                        >
+                          <FileText className="w-4 h-4 mr-1.5" />
+                          Ver certificado PDF
+                        </Button>
+                        <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
+                          <XCircle className="w-4 h-4 mr-1" /> Darme de baja
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -273,5 +311,6 @@ export default function AdministradorRelacionesPage() {
         </p>
       </div>
     </PageContainer>
+    </>
   )
 }
