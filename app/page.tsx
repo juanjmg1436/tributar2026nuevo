@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { AuthorPhoto } from '@/components/ui/AuthorPhoto'
+import { AuthorSection } from '@/components/landing/AuthorSection'
 import {
   BookOpen,
   GraduationCap,
@@ -18,7 +18,6 @@ import {
   DollarSign,
   MapPin,
   LayoutDashboard,
-  CheckCircle2,
   ShoppingBag,
   Receipt,
   Building2,
@@ -36,15 +35,18 @@ export default function HomePage() {
       {/* ── NAVBAR ──────────────────────────────────────── */}
       <nav className="sticky top-[42px] z-40 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <Image
               src="/images/logo-tributar.png"
               alt="TRIBUT.AR"
-              width={36}
-              height={36}
-              className="rounded-lg object-contain"
+              width={44}
+              height={44}
+              className="rounded-xl object-contain drop-shadow-sm"
             />
-            <span className="text-xl font-bold text-primary-900 tracking-tight">TRIBUT.AR</span>
+            <div className="flex flex-col leading-none">
+              <span className="text-2xl font-extrabold text-primary-900 tracking-tight">TRIBUT.AR</span>
+              <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">by Simul.Ar</span>
+            </div>
             <span className="hidden sm:inline-block text-xs font-medium text-slate-400 ml-1 border border-slate-200 rounded px-1.5 py-0.5">Beta</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -82,6 +84,21 @@ export default function HomePage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-36">
           <div className="max-w-3xl mx-auto text-center">
+            {/* Logo hero */}
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <Image
+                src="/images/logo-tributar.png"
+                alt="TRIBUT.AR"
+                width={72}
+                height={72}
+                className="rounded-2xl object-contain drop-shadow-xl"
+              />
+              <div className="text-left">
+                <p className="text-4xl font-extrabold text-white tracking-tight leading-none">TRIBUT.AR</p>
+                <p className="text-sm font-semibold text-blue-300 tracking-widest uppercase mt-1">by Simul.Ar</p>
+              </div>
+            </div>
+
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-blue-200 mb-8">
               <GraduationCap className="w-4 h-4" />
@@ -504,64 +521,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── AUTOR ───────────────────────────────────────── */}
-      <section className="py-24 bg-gradient-to-br from-slate-900 to-primary-950 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-4">
-            <p className="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-3">Sobre el autor</p>
-          </div>
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-8 sm:p-12">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-              <AuthorPhoto size={112} />
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-1">Juan Manuel Gómez</h3>
-                <p className="text-blue-300 text-sm font-medium mb-1">📍 Wanda, Misiones, Argentina</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[
-                    '🎓 Prof. en Cs. Económicas — FHyCS, UNaM',
-                    '📘 Lic. en Educación — Universidad FASTA',
-                    '💡 Experto en Tecnología Educativa',
-                  ].map(tag => (
-                    <span key={tag} className="text-xs bg-white/10 text-blue-200 border border-white/10 rounded-full px-3 py-1">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-blue-100 text-sm leading-relaxed mb-6">
-                  TRIBUT.AR nació de la necesidad de contar con una herramienta práctica y sin riesgos
-                  para aprender el sistema impositivo argentino. Desarrollada con Next.js 14, TypeScript,
-                  Supabase y Tailwind CSS, la plataforma cubre desde la inscripción ante AFIP hasta la
-                  liquidación de sueldos y los impuestos provinciales, buscando democratizar el acceso
-                  al conocimiento fiscal desde las aulas universitarias.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {['Next.js 14', 'TypeScript', 'Supabase', 'Tailwind CSS', 'React 18'].map(tech => (
-                    <span
-                      key={tech}
-                      className="text-xs font-medium bg-white/10 text-blue-200 border border-white/10 rounded-full px-3 py-1"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </div>
+      {/* ── SIMUL.AR BRAND ──────────────────────────────── */}
+      <section className="py-14 bg-gradient-to-br from-slate-900 to-primary-950 text-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">Desarrollado por</p>
+          <div className="inline-flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-900/40">
+              <BookOpen className="w-6 h-6 text-white" />
             </div>
-
-            <div className="mt-10 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-blue-300">
-                © 2026 Juan Manuel Gómez — TRIBUT.AR. Todos los derechos reservados.
-              </p>
-              <div className="flex gap-3">
-                <a
-                  href="mailto:simulareducativo@gmail.com"
-                  className="flex items-center gap-2 text-sm text-blue-300 hover:text-white transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                  simulareducativo@gmail.com
-                </a>
-              </div>
+            <div className="text-left">
+              <p className="text-3xl font-extrabold text-white tracking-tight leading-none">Simul.Ar</p>
+              <p className="text-xs text-blue-300 font-medium mt-0.5">Tecnología Educativa Argentina</p>
             </div>
           </div>
+          <p className="text-blue-200 text-sm max-w-lg mx-auto mb-6 leading-relaxed">
+            Simul.Ar es el estudio de tecnología educativa detrás de TRIBUT.AR.
+            Diseñamos experiencias de aprendizaje interactivas para democratizar
+            el conocimiento en Argentina.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {['Simuladores fiscales', 'Herramientas pedagógicas', 'EdTech argentina', 'Software educativo libre'].map(tag => (
+              <span key={tag} className="text-xs bg-white/10 border border-white/10 text-blue-200 rounded-full px-3 py-1">
+                {tag}
+              </span>
+            ))}
+          </div>
+          {/* Botón autor colapsable */}
+          <AuthorSection />
         </div>
       </section>
 
@@ -592,17 +578,24 @@ export default function HomePage() {
 
             {/* Brand */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-primary-700 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-2.5 mb-3">
+                <Image
+                  src="/images/logo-tributar.png"
+                  alt="TRIBUT.AR"
+                  width={32}
+                  height={32}
+                  className="rounded-lg object-contain"
+                />
+                <div>
+                  <p className="text-white font-extrabold text-base leading-none">TRIBUT.AR</p>
+                  <p className="text-slate-500 text-[10px] font-semibold tracking-widest uppercase leading-none mt-0.5">by Simul.Ar</p>
                 </div>
-                <span className="text-white font-bold text-lg">TRIBUT.AR</span>
               </div>
               <p className="text-sm leading-relaxed text-slate-400">
                 Simulador didáctico del sistema fiscal argentino. Herramienta educativa sin validez legal ni fiscal.
               </p>
               <p className="text-xs mt-3 text-slate-500">
-                Versión 1.0 · Desarrollado en Argentina 🇦🇷
+                Versión 1.0 · Simul.Ar · Argentina 🇦🇷
               </p>
             </div>
 
@@ -632,7 +625,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <p>© 2026 Juan Manuel Gómez — TRIBUT.AR. Todos los derechos reservados.</p>
+            <p>© 2026 Simul.Ar · Juan Manuel Gómez. Todos los derechos reservados.</p>
             <p className="text-center">
               Herramienta educativa · No oficial · Sin validez fiscal ni legal · Datos de demo
             </p>
