@@ -12,8 +12,9 @@ export function useCertificadoPDF() {
     if (!ref.current) return
     setGenerating(true)
 
+    let clone: HTMLDivElement | null = null
+
     try {
-      // Importaciones dinámicas para evitar SSR
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
@@ -21,18 +22,46 @@ export function useCertificadoPDF() {
 
       const el = ref.current
 
-      const canvas = await html2canvas(el, {
-        scale: 3,                  // Alta resolución (3× para PDF nítido)
+      // ── Clon fuera de pantalla sin ninguna transformación CSS ──────────────
+      // Esto elimina cualquier escala/translate del modal que pueda deformar
+      // el renderizado de html2canvas.
+      clone = el.cloneNode(true) as HTMLDivElement
+      Object.assign(clone.style, {
+        position:   'fixed',
+        top:        '-99999px',
+        left:       '-99999px',
+        transform:  'none',
+        width:      `${el.scrollWidth}px`,
+        margin:     '0',
+        padding:    '0',
+        zIndex:     '-1',
+      })
+      document.body.appendChild(clone)
+
+      // Breve pausa para que el browser termine de pintar el clon
+      await new Promise(r => setTimeout(r, 80))
+
+      const canvas = await html2canvas(clone, {
+        scale: 2,                          // 2× → buena calidad sin exceder RAM
         useCORS: true,
-        backgroundColor: null,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: el.scrollWidth,
-        windowHeight: el.scrollHeight,
+        width:  clone.offsetWidth,
+        height: clone.offsetHeight,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth:  clone.offsetWidth,
+        windowHeight: clone.offsetHeight,
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      // Limpia el clon inmediatamente después de capturar
+      document.body.removeChild(clone)
+      clone = null
 
-      // A4 horizontal en mm
+      const imgData = canvas.toDataURL('image/png', 1.0)
+
+      // A4 apaisado (297 × 210 mm)
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -41,22 +70,27 @@ export function useCertificadoPDF() {
 
       const pageW = pdf.internal.pageSize.getWidth()
       const pageH = pdf.internal.pageSize.getHeight()
+      const margin = 10
 
-      // Calcula escala para que el certificado entre centrado con margen
-      const margin = 12
-      const availW = pageW - margin * 2
-      const availH = pageH - margin * 2
-      const ratio = Math.min(availW / canvas.width, availH / canvas.height)
-      const imgW = canvas.width * ratio
+      const ratio = Math.min(
+        (pageW - margin * 2) / canvas.width,
+        (pageH - margin * 2) / canvas.height
+      )
+      const imgW = canvas.width  * ratio
       const imgH = canvas.height * ratio
       const x = (pageW - imgW) / 2
       const y = (pageH - imgH) / 2
 
       pdf.addImage(imgData, 'PNG', x, y, imgW, imgH)
       pdf.save(`${fileName}.pdf`)
+
     } catch (err) {
       console.error('Error generando PDF:', err)
     } finally {
+      // Garantiza que el clon se elimine aunque haya un error
+      if (clone && document.body.contains(clone)) {
+        document.body.removeChild(clone)
+      }
       setGenerating(false)
     }
   }, [])
