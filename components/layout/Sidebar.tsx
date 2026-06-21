@@ -60,6 +60,11 @@ export function Sidebar({ progress, activeRegimeCodes = [], onSignOut, userName,
           icon: <LayoutDashboard className="w-4 h-4" />,
         },
         {
+          href: '/contribuyentes',
+          label: 'Mis contribuyentes',
+          icon: <Users className="w-4 h-4" />,
+        },
+        {
           href: '/perfil-contribuyente',
           label: 'Perfil del contribuyente',
           icon: <User className="w-4 h-4" />,
