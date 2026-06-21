@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { EXAM_STORAGE_KEY, type ExamResult } from '@/lib/constants/examenes'
 import type { UserProgress } from '@/types'
 
 export interface Mission {
@@ -314,7 +315,22 @@ export function useMissions(
         })
       }
 
-      const xp = computedTracks.reduce((s, t) => s + t.earnedXp, 0)
+      // Sumar XP de exámenes aprobados (almacenados en localStorage)
+      let examXp = 0
+      if (typeof window !== 'undefined') {
+        for (const track of computedTracks) {
+          const key = EXAM_STORAGE_KEY(userId!, track.regime)
+          const stored = localStorage.getItem(key)
+          if (stored) {
+            try {
+              const result: ExamResult = JSON.parse(stored)
+              if (result.passed) examXp += result.xpAwarded
+            } catch { /* ignore */ }
+          }
+        }
+      }
+
+      const xp = computedTracks.reduce((s, t) => s + t.earnedXp, 0) + examXp
       setTracks(computedTracks)
       setTotalXp(xp)
     } finally {

@@ -1,8 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle2, Circle, Lock, Clock, ArrowRight, Star } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useUser } from '@/hooks/useUser'
+import { CheckCircle2, Circle, Lock, Clock, ArrowRight, Trophy, Star, RotateCcw } from 'lucide-react'
 import type { MissionTrack, Mission } from '@/hooks/useMissions'
+import { EXAM_STORAGE_KEY, type ExamResult } from '@/lib/constants/examenes'
 import { cn } from '@/lib/utils'
 
 interface MisionesPanelProps {
@@ -82,8 +85,22 @@ function MissionRow({ mission }: { mission: Mission }) {
 }
 
 export function MisionesPanel({ track }: MisionesPanelProps) {
+  const { user } = useUser()
+  const [examResult, setExamResult] = useState<ExamResult | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    const key = EXAM_STORAGE_KEY(user.id, track.regime)
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      try { setExamResult(JSON.parse(stored)) } catch { /* ignore */ }
+    }
+  }, [user, track.regime])
+
   const colors = TRACK_COLORS[track.regime]
   const pct = track.availableXp > 0 ? Math.round((track.earnedXp / track.availableXp) * 100) : 0
+  const trackComplete = track.completedCount >= track.activeCount && track.activeCount > 0
+  const examHref = `/examen/${track.regime === 'MONOTRIBUTO' ? 'monotributo' : 'regimen-general'}`
 
   const categories = Array.from(new Set(track.missions.map(m => m.category)))
 
@@ -143,6 +160,81 @@ export function MisionesPanel({ track }: MisionesPanelProps) {
           )
         })}
       </div>
+
+      {/* ── Examen final ──────────────────────────────────────── */}
+      {trackComplete && (
+        <div className={cn(
+          'px-4 py-4 border-t-2',
+          examResult?.passed
+            ? 'bg-emerald-50 border-emerald-200'
+            : 'bg-amber-50 border-amber-200'
+        )}>
+          {examResult?.passed ? (
+            /* Ya aprobado */
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                <Trophy className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-emerald-800">
+                  Examen aprobado — {examResult.score}%
+                </p>
+                <p className="text-[11px] text-emerald-600">
+                  +{examResult.xpAwarded} XP ganados · Completaste la ruta
+                </p>
+              </div>
+              <Link
+                href={`${examHref}/resultado`}
+                className="text-[11px] font-semibold text-emerald-700 hover:underline whitespace-nowrap"
+              >
+                Ver resultado →
+              </Link>
+            </div>
+          ) : examResult && !examResult.passed ? (
+            /* Falló: reintentar */
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-800">
+                  Último intento: {examResult.score}% — No aprobado
+                </p>
+                <p className="text-[11px] text-amber-600">
+                  Necesitás 70% para aprobar (+500 XP)
+                </p>
+              </div>
+              <Link
+                href={examHref}
+                className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Reintentar
+              </Link>
+            </div>
+          ) : (
+            /* Sin intentar: desbloquear examen */
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-800">
+                  🎉 ¡Ruta completada! Examen final disponible
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  10 preguntas · 15 minutos · Mínimo 70% para aprobar · +500 XP
+                </p>
+              </div>
+              <Link
+                href={examHref}
+                className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-md whitespace-nowrap"
+              >
+                Iniciar examen →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
