@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRACIÓN: Soporte multi-contribuyente (hasta 3 por usuario)
+-- MIGRACIÓN: Soporte multi-contribuyente (máximo 2 por usuario)
 -- TRIBUT.AR — SIMULADOR EDUCATIVO
 -- Ejecutar en: Supabase Dashboard → SQL Editor
 -- ============================================================
@@ -8,10 +8,10 @@
 ALTER TABLE public.taxpayer_profiles
   DROP CONSTRAINT IF EXISTS taxpayer_profiles_user_id_key;
 
--- 2. Agregar columna 'slot' (1, 2 o 3) para identificar cada contribuyente
+-- 2. Agregar columna 'slot' (1 o 2) para identificar cada contribuyente
 ALTER TABLE public.taxpayer_profiles
   ADD COLUMN IF NOT EXISTS slot INTEGER NOT NULL DEFAULT 1
-    CHECK (slot IN (1, 2, 3));
+    CHECK (slot IN (1, 2));
 
 -- 3. Agregar columna 'alias' para nombre descriptivo del contribuyente
 ALTER TABLE public.taxpayer_profiles
@@ -27,17 +27,17 @@ ALTER TABLE public.taxpayer_profiles
 ALTER TABLE public.taxpayer_profiles
   ADD CONSTRAINT taxpayer_profiles_user_slot_key UNIQUE (user_id, slot);
 
--- 6. Actualizar los registros existentes para que tengan slot=1
+-- 6. Actualizar los registros existentes
 UPDATE public.taxpayer_profiles
-  SET slot = 1, alias = 'Contribuyente 1', is_active = true
+  SET slot = 1, alias = entity_name, is_active = true
   WHERE slot IS NULL OR slot = 0;
 
--- 7. Índice para búsquedas rápidas por user_id + is_active
+-- 7. Índice para búsquedas rápidas
 CREATE INDEX IF NOT EXISTS idx_taxpayer_profiles_active
   ON public.taxpayer_profiles (user_id, is_active);
 
 -- ============================================================
--- Función para garantizar que solo haya 1 activo por usuario
+-- Trigger: solo 1 contribuyente activo por usuario
 -- ============================================================
 CREATE OR REPLACE FUNCTION enforce_single_active_taxpayer()
 RETURNS TRIGGER AS $$
@@ -45,8 +45,7 @@ BEGIN
   IF NEW.is_active = true THEN
     UPDATE public.taxpayer_profiles
       SET is_active = false
-      WHERE user_id = NEW.user_id
-        AND id != NEW.id;
+      WHERE user_id = NEW.user_id AND id != NEW.id;
   END IF;
   RETURN NEW;
 END;
@@ -58,19 +57,17 @@ CREATE TRIGGER trg_single_active_taxpayer
   FOR EACH ROW EXECUTE FUNCTION enforce_single_active_taxpayer();
 
 -- ============================================================
--- Función para limitar a 3 contribuyentes por usuario
+-- Trigger: máximo 2 contribuyentes por usuario
 -- ============================================================
 CREATE OR REPLACE FUNCTION check_max_taxpayer_profiles()
 RETURNS TRIGGER AS $$
-DECLARE
-  profile_count INTEGER;
+DECLARE profile_count INTEGER;
 BEGIN
   SELECT COUNT(*) INTO profile_count
     FROM public.taxpayer_profiles
     WHERE user_id = NEW.user_id;
-
-  IF profile_count >= 3 THEN
-    RAISE EXCEPTION 'Máximo 3 contribuyentes por usuario';
+  IF profile_count >= 2 THEN
+    RAISE EXCEPTION 'Máximo 2 contribuyentes por usuario permitidos en el simulador';
   END IF;
   RETURN NEW;
 END;
@@ -80,16 +77,3 @@ DROP TRIGGER IF EXISTS trg_max_taxpayer_profiles ON public.taxpayer_profiles;
 CREATE TRIGGER trg_max_taxpayer_profiles
   BEFORE INSERT ON public.taxpayer_profiles
   FOR EACH ROW EXECUTE FUNCTION check_max_taxpayer_profiles();
-
--- ============================================================
--- Verificación
--- ============================================================
-SELECT
-  'taxpayer_profiles columns' AS check_name,
-  column_name,
-  data_type
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'taxpayer_profiles'
-  AND column_name IN ('slot', 'alias', 'is_active')
-ORDER BY column_name;

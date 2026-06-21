@@ -14,12 +14,11 @@ import { useNotifications } from '@/hooks/useNotifications'
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const { user, profile, loading, error } = useUser()
-  const { progress } = useProgress(user?.id ?? null)
+  const { progress, activeRegimeCodes } = useProgress(user?.id ?? null)
   const { unreadCount } = useNotifications(user?.id ?? null)
   const didRedirect = useRef(false)
 
   useEffect(() => {
-    // Redirigir solo si: carga terminó, no hay usuario, sin error de red
     if (!loading && !user && !error && !didRedirect.current) {
       didRedirect.current = true
       window.location.href = '/login'
@@ -42,13 +41,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         mobileOpen={mobileNavOpen}
         onClose={() => setMobileNavOpen(false)}
         progress={progress}
+        activeRegimeCodes={activeRegimeCodes}
         unreadCount={unreadCount}
+        userName={profile?.full_name}
+        onSignOut={handleSignOut}
       />
       <div className="lg:pl-72">
         <Header
-          onOpenMobile={() => setMobileNavOpen(true)}
-          progress={progress}
+          onMenuToggle={() => setMobileNavOpen(true)}
           userName={profile?.full_name}
+          unreadNotifications={unreadCount}
           onSignOut={handleSignOut}
         />
         <main>
@@ -61,7 +63,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <MobileNav
-        onOpenMenu={() => setMobileNavOpen(true)}
+        isOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        progress={progress}
+        userName={profile?.full_name}
         onSignOut={handleSignOut}
       />
     </div>

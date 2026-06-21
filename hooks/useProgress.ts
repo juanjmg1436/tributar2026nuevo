@@ -7,6 +7,7 @@ import type { UserProgress, StageInfo } from '@/types'
 export function useProgress(userId: string | null) {
   const [progress, setProgress] = useState<UserProgress | null>(null)
   const [stages, setStages] = useState<StageInfo[]>([])
+  const [activeRegimeCodes, setActiveRegimeCodes] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -21,20 +22,23 @@ export function useProgress(userId: string | null) {
       setLoading(true)
 
       const [taxpayerResult, stepsResult, regimeResult, fiscalResult, posResult] = await Promise.all([
-        supabase.from('taxpayer_profiles').select('status').eq('user_id', userId).single(),
+        supabase.from('taxpayer_profiles').select('status').eq('user_id', userId).eq('is_active', true).maybeSingle(),
         supabase.from('registration_steps').select('status').eq('user_id', userId),
-        supabase.from('taxpayer_regime_status').select('status').eq('user_id', userId).eq('status', 'active'),
-        supabase.from('e_fiscal_address').select('status').eq('user_id', userId).single(),
+        supabase.from('taxpayer_regime_status' as any).select('status, tax_regimes(code)').eq('user_id', userId).eq('status', 'active'),
+        supabase.from('e_fiscal_address').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('points_of_sale').select('id').eq('user_id', userId).eq('status', 'active'),
       ])
 
       const hasTaxpayerProfile = !!taxpayerResult.data
-      const allSteps = stepsResult.data || []
-      const completedSteps = allSteps.filter(s => s.status === 'completed').length
+      const allSteps = (stepsResult.data || []) as any[]
+      const completedSteps = allSteps.filter((s: any) => s.status === 'completed').length
       const totalSteps = 6
       const registrationComplete = completedSteps === totalSteps
-      const hasActiveRegime = (regimeResult.data?.length || 0) > 0
-      const hasEFiscalAddress = fiscalResult.data?.status === 'constituted'
+      const activeRegimes = (regimeResult.data || []) as any[]
+      const hasActiveRegime = activeRegimes.length > 0
+      const codes = activeRegimes.map((r: any) => r.tax_regimes?.code).filter(Boolean) as string[]
+      setActiveRegimeCodes(codes)
+      const hasEFiscalAddress = (fiscalResult.data as any)?.status === 'constituted'
       const hasPOS = (posResult.data?.length || 0) > 0
 
       let completionPct = 0
@@ -120,5 +124,5 @@ export function useProgress(userId: string | null) {
     calculateProgress()
   }, [userId])
 
-  return { progress, stages, loading, refresh: calculateProgress }
+  return { progress, stages, activeRegimeCodes, loading, refresh: calculateProgress }
 }

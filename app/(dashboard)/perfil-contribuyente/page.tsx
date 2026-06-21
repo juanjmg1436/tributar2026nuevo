@@ -62,7 +62,8 @@ export default function PerfilContribuyentePage() {
         .from('taxpayer_profiles')
         .select('*')
         .eq('user_id', user!.id)
-        .single()
+        .eq('is_active', true)
+        .maybeSingle()
       if (data) {
         setExisting(data)
         setCuit(data.cuit)
@@ -132,12 +133,12 @@ export default function PerfilContribuyentePage() {
         const { error: updateError } = await supabase
           .from('taxpayer_profiles')
           .update(payload)
-          .eq('user_id', user.id)
+          .eq('id', existing.id)
         if (updateError) throw updateError
       } else {
         const { error: insertError } = await supabase
           .from('taxpayer_profiles')
-          .insert(payload)
+          .insert({ ...payload, slot: 1, alias: payload.entity_name, is_active: true })
         if (insertError) throw insertError
       }
 

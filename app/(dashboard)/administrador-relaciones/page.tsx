@@ -38,7 +38,7 @@ export default function AdministradorRelacionesPage() {
     try {
       setLoading(true)
       const [tpRes, regimesRes, statusesRes, stepsRes] = await Promise.all([
-        supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).single(),
+        supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
         supabase.from('tax_regimes').select('*').eq('is_active', true).order('sort_order'),
         supabase.from('taxpayer_regime_status').select('*').eq('user_id', user!.id),
         supabase.from('registration_steps').select('status').eq('user_id', user!.id),

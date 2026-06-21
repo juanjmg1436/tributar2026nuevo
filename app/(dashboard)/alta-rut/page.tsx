@@ -49,7 +49,8 @@ export default function AltaRutPage() {
         .from('taxpayer_profiles')
         .select('*')
         .eq('user_id', user!.id)
-        .single()
+        .eq('is_active', true)
+        .maybeSingle()
       setTaxpayer(tp || null)
 
       if (tp) {

@@ -27,7 +27,7 @@ export default function ImprimirComprobantePage() {
     const [invRes, itemsRes, tpRes] = await Promise.all([
       supabase.from('invoices').select('*').eq('id', id).eq('user_id', user!.id).single(),
       supabase.from('invoice_items').select('*').eq('invoice_id', id).order('created_at'),
-      supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).limit(1).maybeSingle(),
+      supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
     ])
     setInvoice(invRes.data)
     setItems(itemsRes.data || [])

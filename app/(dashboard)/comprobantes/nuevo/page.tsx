@@ -68,7 +68,7 @@ export default function NuevoComprobantePage() {
     async function loadData() {
       const [posRes, tpRes, regimeRes] = await Promise.all([
         supabase.from('points_of_sale').select('*').eq('user_id', user!.id).eq('status', 'active'),
-        supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).single(),
+        supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
         supabase.from('taxpayer_regime_status').select('*, tax_regimes(code)').eq('user_id', user!.id).eq('status', 'active'),
       ])
       setPosList(posRes.data || [])
