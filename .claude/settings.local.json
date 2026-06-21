@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); p=d.get\\('packages',{}\\); print\\('ssr:', p.get\\('node_modules/@supabase/ssr',{}\\).get\\('version','?'\\)\\); print\\('js:', p.get\\('node_modules/@supabase/supabase-js',{}\\).get\\('version','?'\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version','?'\\)\\)\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "mcp__56a824b9-93bb-4422-bf82-d5ebb5689499__list_teams",
+      "mcp__56a824b9-93bb-4422-bf82-d5ebb5689499__list_projects",
+      "Bash(git commit *)",
+      "WebSearch",
+      "WebFetch(domain:www.ambito.com)",
+      "WebFetch(domain:www.iprofesional.com)",
+      "WebFetch(domain:tributosimple.com)",
+      "WebFetch(domain:panoramapais.com)",
+      "WebFetch(domain:www.afip.gob.ar)",
+      "WebFetch(domain:estudiodelamo.com)",
+      "mcp__c0e40e89-022e-4bdb-bb96-a1032af1723f__list_projects",
+      "mcp__c0e40e89-022e-4bdb-bb96-a1032af1723f__apply_migration",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(npx next *)"
+    ]
+  }
+}

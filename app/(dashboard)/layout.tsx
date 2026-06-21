@@ -38,10 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-slate-50">
       <SimuladorBanner />
       <Sidebar
-        mobileOpen={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
         progress={progress}
-        activeRegimeCodes={activeRegimeCodes}
         unreadCount={unreadCount}
         userName={profile?.full_name}
         onSignOut={handleSignOut}

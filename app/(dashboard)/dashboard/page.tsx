@@ -13,14 +13,16 @@ import { Alert } from '@/components/ui/Alert'
 import { MisionesPanel } from '@/components/gamification/MisionesPanel'
 import { XpLevelBar } from '@/components/gamification/XpLevelBar'
 import { NotificationCard } from '@/components/dashboard/NotificationCard'
+import type { ProgressDetail } from '@/hooks/useProgress'
 import {
   ArrowRight, CreditCard, Receipt, ShoppingBag, FileText,
-  Users, Settings, Info, Trophy
+  Users, Settings, Info, Trophy,
 } from 'lucide-react'
 
 export default function DashboardPage() {
   const { user, profile, taxpayerProfile } = useUser()
-  const { progress, activeRegimeCodes, loading: progressLoading } = useProgress(user?.id ?? null, taxpayerProfile?.id ?? null)
+  const { progress: progressRaw, activeRegimeCodes, loading: progressLoading } = useProgress(user?.id ?? null, taxpayerProfile?.id ?? null)
+  const progress = progressRaw as ProgressDetail | null
   const { notifications, unreadCount, markAsRead } = useNotifications(user?.id ?? null)
   const { tracks, totalXp, levelInfo, loading: missionsLoading } = useMissions(
     user?.id ?? null,
@@ -58,7 +60,7 @@ export default function DashboardPage() {
       {/* ── Bienvenida nueva cuenta ───────────────────────── */}
       {!progress?.hasTaxpayerProfile && (
         <Alert variant="info" className="mb-6">
-          <strong>¡Bienvenido/a al Simulador Fiscal!</strong> Para comenzar, creá tu perfil de contribuyente simulado. Luego podrás elegir entre la <strong>Ruta del Monotributista</strong> o la <strong>Ruta del Régimen General</strong> y ganar XP completando misiones pedagógicas.
+          <strong>¡Bienvenido/a al Simulador Fiscal!</strong> Para comenzar, creá tu perfil de contribuyente simulado. Luego elegís entre la <strong>Ruta del Monotributista</strong> o la <strong>Ruta del Régimen General</strong> y ganás XP completando misiones pedagógicas.
         </Alert>
       )}
 
@@ -69,8 +71,8 @@ export default function DashboardPage() {
           <div className="flex-1">
             <p className="text-sm font-bold text-amber-800">¿Qué régimen vas a practicar?</p>
             <p className="text-xs text-amber-700 mt-0.5 mb-3">
-              Elegí tu situación fiscal para desbloquear la ruta de misiones correspondiente.
-              Podés practicar ambas con tus dos contribuyentes.
+              Elegí tu situación fiscal para desbloquear la ruta de misiones.
+              Con dos contribuyentes podés practicar ambas rutas simultáneamente.
             </p>
             <div className="flex gap-2 flex-wrap">
               <Link href="/administrador-relaciones" className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
@@ -89,58 +91,50 @@ export default function DashboardPage() {
         {/* ── COLUMNA IZQUIERDA: Misiones ─────────────────── */}
         <div className="lg:col-span-2 space-y-5">
 
-          {/* Misiones por régimen */}
           {tracks.length > 0 ? (
             tracks.map(track => (
               <MisionesPanel key={track.regime} track={track} />
             ))
           ) : (
-            /* Sin régimen aún: mostrar preview de ambas rutas */
             <div className="space-y-4">
               <div className="p-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/50">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-base">🟢</span>
+                  <span>🟢</span>
                   <p className="font-bold text-slate-700 text-sm">Ruta del Monotributista</p>
                 </div>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-xs text-slate-500 mb-2">
                   Para pequeños contribuyentes. Practicás cuota mensual, categorías, Factura C y recategorización semestral.
                 </p>
                 <ul className="text-xs text-slate-600 space-y-1">
                   {['Inscripción al Monotributo', 'Factura C electrónica', 'Pago de cuota mensual', 'Recategorización semestral (enero y julio)'].map(t => (
-                    <li key={t} className="flex items-center gap-2"><span className="text-slate-300">○</span> {t}</li>
+                    <li key={t} className="flex items-center gap-2"><span className="text-slate-300">○</span>{t}</li>
                   ))}
                 </ul>
-                <p className="text-[10px] text-slate-400 mt-3">
-                  Disponible cuando elegís Monotributo en el Administrador de Relaciones
-                </p>
               </div>
 
               <div className="p-4 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-base">🔵</span>
+                  <span>🔵</span>
                   <p className="font-bold text-slate-700 text-sm">Ruta del Régimen General</p>
                 </div>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-xs text-slate-500 mb-2">
                   Para empresas y profesionales RI. Practicás DDJJ de IVA, Ganancias, VEPs y más.
                 </p>
                 <ul className="text-xs text-slate-600 space-y-1">
                   {['Inscripción en IVA + Ganancias', 'Factura A y B electrónicas', 'DDJJ IVA mensual (F.2002)', 'DDJJ Ganancias anual (F.713)', 'F.931 si tenés empleados'].map(t => (
-                    <li key={t} className="flex items-center gap-2"><span className="text-slate-300">○</span> {t}</li>
+                    <li key={t} className="flex items-center gap-2"><span className="text-slate-300">○</span>{t}</li>
                   ))}
                 </ul>
-                <p className="text-[10px] text-slate-400 mt-3">
-                  Disponible cuando elegís Régimen General en el Administrador de Relaciones
-                </p>
               </div>
             </div>
           )}
 
-          {/* Logro si el nivel es alto */}
+          {/* Logro si nivel alto */}
           {levelInfo.level >= 4 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
               <Trophy className="w-5 h-5 text-amber-500 flex-shrink-0" />
               <div>
-                <p className="text-xs font-bold text-amber-800">Nivel {levelInfo.level} alcanzado: {levelInfo.name}</p>
+                <p className="text-xs font-bold text-amber-800">Nivel {levelInfo.level}: {levelInfo.name}</p>
                 <p className="text-[10px] text-amber-600">Seguí completando misiones para desbloquear nuevas etapas.</p>
               </div>
             </div>
@@ -181,6 +175,13 @@ export default function DashboardPage() {
                 value={progress?.hasPOS ? 'Habilitado' : 'Sin habilitar'}
                 active={!!progress?.hasPOS}
               />
+              {progress?.hasInvoice !== undefined && (
+                <StatusRow
+                  label="FACTURACIÓN"
+                  value={progress.hasInvoice ? 'Con comprobantes' : 'Sin comprobantes'}
+                  active={!!progress.hasInvoice}
+                />
+              )}
             </div>
             <div className="mt-3 pt-3 border-t border-slate-100">
               <Link href="/contribuyentes" className="text-xs text-primary-600 hover:underline flex items-center gap-1">
@@ -194,12 +195,12 @@ export default function DashboardPage() {
             <CardTitle className="mb-3">Acceso rápido</CardTitle>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { href: '/estado-cuenta',         label: 'Estado de cuenta', icon: <CreditCard className="w-4 h-4" />, locked: !progress?.registrationComplete },
-                { href: '/comprobantes',           label: 'Comprobantes',     icon: <Receipt className="w-4 h-4" />,     locked: !progress?.hasPOS },
-                { href: '/puntos-venta',           label: 'Puntos de venta',  icon: <ShoppingBag className="w-4 h-4" />, locked: !progress?.registrationComplete },
-                { href: '/administrador-relaciones', label: 'Regímenes',      icon: <Settings className="w-4 h-4" />,    locked: !progress?.registrationComplete },
-                { href: '/historial',              label: 'Historial',        icon: <FileText className="w-4 h-4" />,    locked: false },
-                { href: '/contribuyentes',         label: 'Mis Contribuyentes', icon: <Users className="w-4 h-4" />,    locked: false },
+                { href: '/estado-cuenta',            label: 'Estado de cuenta', icon: <CreditCard className="w-4 h-4" />,  locked: !progress?.registrationComplete },
+                { href: '/comprobantes',              label: 'Comprobantes',     icon: <Receipt className="w-4 h-4" />,      locked: !progress?.hasPOS },
+                { href: '/puntos-venta',              label: 'Puntos de venta',  icon: <ShoppingBag className="w-4 h-4" />,  locked: !progress?.registrationComplete },
+                { href: '/administrador-relaciones',  label: 'Regímenes',        icon: <Settings className="w-4 h-4" />,     locked: !progress?.registrationComplete },
+                { href: '/historial',                 label: 'Historial',        icon: <FileText className="w-4 h-4" />,     locked: false },
+                { href: '/contribuyentes',            label: 'Contribuyentes',   icon: <Users className="w-4 h-4" />,        locked: false },
               ].map((item) => (
                 item.locked ? (
                   <div key={item.href} className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-slate-50 opacity-40 cursor-not-allowed text-center">

@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { formatDate, formatCurrency } from '@/lib/utils'
-import { Printer, ArrowLeft } from 'lucide-react'
+import { Printer, ArrowLeft, Download } from 'lucide-react'
+import { exportElementToPDF } from '@/lib/pdf-export'
 import type { Invoice, InvoiceItem, TaxpayerProfile } from '@/types'
 
 export default function ImprimirComprobantePage() {
@@ -15,6 +16,7 @@ export default function ImprimirComprobantePage() {
   const [items, setItems] = useState<InvoiceItem[]>([])
   const [taxpayer, setTaxpayer] = useState<TaxpayerProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [exportingPDF, setExportingPDF] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -35,12 +37,11 @@ export default function ImprimirComprobantePage() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    if (!loading && invoice) {
-      // Auto-print después de que el contenido cargue (opcional)
-      // window.print()
-    }
-  }, [loading, invoice])
+  function handleDownloadPDF() {
+    if (!invoice) return
+    const filename = `TRIBUTAR_Comprobante_${invoice.invoice_type}_${String(invoice.invoice_number ?? 1).padStart(8, '0')}`
+    exportElementToPDF('documento-a4', filename, () => setExportingPDF(true), () => setExportingPDF(false))
+  }
 
   if (loading) {
     return (
@@ -64,7 +65,6 @@ export default function ImprimirComprobantePage() {
     )
   }
 
-  const typeLabel: Record<string, string> = { A: 'A', B: 'B', C: 'C', X: 'X', DEMO: 'DEMO' }
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0)
   const iva = invoice.invoice_type === 'A' ? subtotal * 0.21 : 0
   const total = subtotal + iva
@@ -72,36 +72,52 @@ export default function ImprimirComprobantePage() {
   return (
     <div className="min-h-screen bg-slate-100">
 
-      {/* Toolbar — solo en pantalla, oculta al imprimir */}
-      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+      {/* Toolbar — solo en pantalla */}
+      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between gap-3">
         <a href="/comprobantes" className="flex items-center gap-2 text-sm text-slate-600 hover:text-primary-700 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Volver a comprobantes
         </a>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 bg-primary-700 hover:bg-primary-800 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-        >
-          <Printer className="w-4 h-4" />
-          Guardar / Imprimir PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={exportingPDF}
+            className="flex items-center gap-2 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            {exportingPDF ? 'Generando PDF…' : 'Descargar PDF'}
+          </button>
+        </div>
       </div>
 
       {/* Hoja A4 */}
       <div className="p-8 print:p-0">
-        <div className="max-w-[794px] mx-auto bg-white shadow-xl print:shadow-none relative overflow-hidden"
-          style={{ minHeight: '1123px' }}>
+        <div
+          id="documento-a4"
+          className="max-w-[794px] mx-auto bg-white shadow-xl print:shadow-none relative overflow-hidden"
+          style={{ minHeight: '1123px' }}
+        >
 
           {/* ── SELLO DE AGUA ── */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none" style={{ zIndex: 0 }}>
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+            style={{ zIndex: 0 }}
+          >
             <div style={{
               transform: 'rotate(-35deg)',
-              opacity: 0.04,
-              fontSize: '72px',
+              opacity: 0.065,
+              fontSize: '68px',
               fontWeight: 900,
               color: '#1e3a5f',
-              letterSpacing: '-2px',
-              lineHeight: 1.2,
+              letterSpacing: '-1px',
+              lineHeight: 1.25,
               textAlign: 'center',
               userSelect: 'none',
               whiteSpace: 'nowrap',
@@ -121,7 +137,7 @@ export default function ImprimirComprobantePage() {
                     </div>
                     <div>
                       <h1 className="text-xl font-black text-primary-900 leading-none">TRIBUT.AR</h1>
-                      <p className="text-xs text-slate-500">Simulador Educativo</p>
+                      <p className="text-xs text-slate-500">Simulador Educativo — Sin validez fiscal</p>
                     </div>
                   </div>
                   <div className="mt-3 text-sm text-slate-700">
@@ -134,7 +150,7 @@ export default function ImprimirComprobantePage() {
                 {/* Tipo de comprobante */}
                 <div className="text-right">
                   <div className="inline-flex items-center justify-center w-20 h-20 border-4 border-primary-700 rounded-lg mb-2">
-                    <span className="text-4xl font-black text-primary-700">{typeLabel[invoice.invoice_type] ?? 'X'}</span>
+                    <span className="text-4xl font-black text-primary-700">{invoice.invoice_type}</span>
                   </div>
                   <p className="text-sm font-bold text-slate-700">FACTURA {invoice.invoice_type}</p>
                   <p className="text-xs text-slate-500">N° {String(invoice.invoice_number ?? 1).padStart(8, '0')}</p>
@@ -175,14 +191,18 @@ export default function ImprimirComprobantePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {items.map((item, i) => (
+                  {items.length > 0 ? items.map((item, i) => (
                     <tr key={item.id ?? i}>
                       <td className="py-2.5 text-slate-800">{item.description}</td>
                       <td className="py-2.5 text-right text-slate-600">{item.quantity}</td>
                       <td className="py-2.5 text-right text-slate-600">{formatCurrency(item.unit_price)}</td>
                       <td className="py-2.5 text-right text-slate-800 font-medium">{formatCurrency(item.quantity * item.unit_price)}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-400 text-sm">Sin ítems cargados</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -217,7 +237,7 @@ export default function ImprimirComprobantePage() {
                     ⚠️ DOCUMENTO SIN VALIDEZ FISCAL NI LEGAL
                   </p>
                   <p className="text-[10px] text-amber-700 mt-0.5">
-                    Generado por TRIBUT.AR — Simulador Didáctico. No reemplaza comprobantes emitidos ante AFIP.
+                    Generado por TRIBUT.AR — Simulador Didáctico. No reemplaza comprobantes emitidos ante ARCA/AFIP.
                   </p>
                 </div>
                 <div className="text-right">
@@ -234,8 +254,10 @@ export default function ImprimirComprobantePage() {
       <style>{`
         @media print {
           body { margin: 0; background: white; }
-          @page { size: A4; margin: 0; }
+          @page { size: A4 portrait; margin: 0; }
           .print\\:hidden { display: none !important; }
+          .print\\:shadow-none { box-shadow: none !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
     </div>

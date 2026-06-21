@@ -68,6 +68,8 @@ export default function EstadoCuentaPage() {
       if (!regime) continue
 
       if (regime.code === 'MONOTRIBUTO') {
+        // Valores reales 2026 (ARCA, vigente 01/02/2026): Cat A=$42.387 — Cat E=$102.538
+        // Simulamos una categoría C/D típica: cuota entre $56.500 y $72.500/mes
         for (let i = 0; i < 3; i++) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 20)
           obligations.push({
@@ -76,9 +78,10 @@ export default function EstadoCuentaPage() {
             concept: 'Cuota Monotributo',
             period: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
             due_date: date.toISOString().split('T')[0],
-            amount_demo: 25000 + Math.random() * 5000,
+            // Cat C servicios: $56.502 · Cat D servicios: $72.414 (valores ARCA feb-2026)
+            amount_demo: 56502 + Math.random() * 15912,
             status: i === 0 ? 'pending' : i === 1 ? 'paid' : 'paid',
-            description: 'Cuota mensual de Monotributo (incluye IVA, Ganancias y aportes previsionales)',
+            description: 'Cuota mensual Monotributo — impuesto integrado + SIPA + obra social (ARCA, vigente 01/02/2026)',
             origin: 'system',
           })
         }
@@ -93,9 +96,10 @@ export default function EstadoCuentaPage() {
             concept: 'IVA — Período Fiscal',
             period: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
             due_date: date.toISOString().split('T')[0],
-            amount_demo: 80000 + Math.random() * 20000,
+            // IVA 21% sobre facturación mensual simulada (~$500.000–$800.000)
+            amount_demo: 105000 + Math.random() * 63000,
             status: i === 0 ? 'pending' : 'submitted',
-            description: 'Declaración jurada mensual de IVA (Régimen General)',
+            description: 'Declaración jurada mensual de IVA — alícuota 21% (RG ARCA)',
             origin: 'system',
           })
           obligations.push({
@@ -104,9 +108,10 @@ export default function EstadoCuentaPage() {
             concept: 'Ganancias — Anticipo',
             period: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
             due_date: new Date(date.getFullYear(), date.getMonth() + 1, 5).toISOString().split('T')[0],
-            amount_demo: 45000 + Math.random() * 15000,
+            // Anticipo Ganancias: ~10% del impuesto determinado del ejercicio anterior
+            amount_demo: 85000 + Math.random() * 40000,
             status: i === 0 ? 'overdue' : 'paid',
-            description: 'Anticipo mensual del impuesto a las Ganancias',
+            description: 'Anticipo mensual impuesto a las Ganancias — RG ARCA',
             origin: 'system',
           })
         }
