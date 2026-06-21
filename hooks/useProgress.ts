@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserProgress, StageInfo } from '@/types'
 
-export function useProgress(userId: string | null) {
+export function useProgress(userId: string | null, taxpayerProfileId: string | null = null) {
   const [progress, setProgress] = useState<UserProgress | null>(null)
   const [stages, setStages] = useState<StageInfo[]>([])
   const [activeRegimeCodes, setActiveRegimeCodes] = useState<string[]>([])
@@ -21,12 +21,17 @@ export function useProgress(userId: string | null) {
     try {
       setLoading(true)
 
+      // Filter by taxpayer_profile_id when available (multi-contributor support)
+      const profileFilter = taxpayerProfileId
+        ? { col: 'taxpayer_profile_id' as const, val: taxpayerProfileId }
+        : { col: 'user_id' as const, val: userId! }
+
       const [taxpayerResult, stepsResult, regimeResult, fiscalResult, posResult] = await Promise.all([
         supabase.from('taxpayer_profiles').select('status').eq('user_id', userId).eq('is_active', true).maybeSingle(),
-        supabase.from('registration_steps').select('status').eq('user_id', userId),
-        supabase.from('taxpayer_regime_status' as any).select('status, tax_regimes(code)').eq('user_id', userId).eq('status', 'active'),
-        supabase.from('e_fiscal_address').select('status').eq('user_id', userId).maybeSingle(),
-        supabase.from('points_of_sale').select('id').eq('user_id', userId).eq('status', 'active'),
+        supabase.from('registration_steps').select('status').eq(profileFilter.col as any, profileFilter.val),
+        supabase.from('taxpayer_regime_status' as any).select('status, tax_regimes(code)').eq(profileFilter.col as any, profileFilter.val).eq('status', 'active'),
+        supabase.from('e_fiscal_address').select('status').eq(profileFilter.col as any, profileFilter.val).maybeSingle(),
+        supabase.from('points_of_sale').select('id').eq(profileFilter.col as any, profileFilter.val).eq('status', 'active'),
       ])
 
       const hasTaxpayerProfile = !!taxpayerResult.data
@@ -122,7 +127,7 @@ export function useProgress(userId: string | null) {
 
   useEffect(() => {
     calculateProgress()
-  }, [userId])
+  }, [userId, taxpayerProfileId])
 
   return { progress, stages, activeRegimeCodes, loading, refresh: calculateProgress }
 }

@@ -24,20 +24,18 @@ export function ContribuyenteSelector() {
   async function handleCreate() {
     if (!canCreate || !user) return
     setCreating(true)
-    const nextSlot = allTaxpayerProfiles.length + 1
+    // Slot 2 = persona jurídica (empresa) para practicar Régimen General / empleador
     const { error } = await supabase.from('taxpayer_profiles').insert({
       user_id: user.id,
-      slot: nextSlot,
-      alias: `Contribuyente ${nextSlot}`,
+      slot: 2,
+      alias: 'Empresa (Slot 2)',
       is_active: false,
-      entity_name: `Empresa ${nextSlot}`,
-      subject_type: 'persona_humana',
-      cuit: `00-00000000${nextSlot}-0`,
+      entity_name: 'Mi Empresa S.R.L.',
+      subject_type: 'persona_juridica',
+      cuit: '30-00000002-0',
       status: 'incomplete',
     } as any)
-    if (!error) {
-      await refresh()
-    }
+    if (!error) await refresh()
     setCreating(false)
     setOpen(false)
   }

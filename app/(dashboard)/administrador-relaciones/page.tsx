@@ -17,7 +17,7 @@ import {
 import type { TaxRegime, TaxpayerRegimeStatus, TaxpayerProfile } from '@/types'
 
 export default function AdministradorRelacionesPage() {
-  const { user, loading: userLoading } = useUser()
+  const { user, taxpayerProfile, loading: userLoading } = useUser()
   const [taxpayer, setTaxpayer] = useState<TaxpayerProfile | null>(null)
   const [regimes, setRegimes] = useState<TaxRegime[]>([])
   const [regimeStatuses, setRegimeStatuses] = useState<TaxpayerRegimeStatus[]>([])
@@ -32,22 +32,28 @@ export default function AdministradorRelacionesPage() {
   useEffect(() => {
     if (!user) return
     loadData()
-  }, [user])
+  }, [user, taxpayerProfile?.id])
 
   async function loadData() {
     try {
       setLoading(true)
-      const [tpRes, regimesRes, statusesRes, stepsRes] = await Promise.all([
+      const [tpRes, regimesRes] = await Promise.all([
         supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
         supabase.from('tax_regimes').select('*').eq('is_active', true).order('sort_order'),
-        supabase.from('taxpayer_regime_status').select('*').eq('user_id', user!.id),
-        supabase.from('registration_steps').select('status').eq('user_id', user!.id),
       ])
-      setTaxpayer(tpRes.data || null)
+      const tp = tpRes.data || null
+      setTaxpayer(tp)
       setRegimes(regimesRes.data || [])
-      setRegimeStatuses(statusesRes.data || [])
-      const completedSteps = (stepsRes.data || []).filter(s => s.status === 'completed').length
-      setIsRegistrationComplete(completedSteps === 6)
+
+      if (tp) {
+        const [statusesRes, stepsRes] = await Promise.all([
+          supabase.from('taxpayer_regime_status').select('*').eq('taxpayer_profile_id', tp.id),
+          supabase.from('registration_steps').select('status').eq('taxpayer_profile_id', tp.id),
+        ])
+        setRegimeStatuses(statusesRes.data || [])
+        const completedSteps = (stepsRes.data || []).filter((s: any) => s.status === 'completed').length
+        setIsRegistrationComplete(completedSteps === 6)
+      }
     } finally {
       setLoading(false)
     }
@@ -97,6 +103,7 @@ export default function AdministradorRelacionesPage() {
       } else {
         await supabase.from('taxpayer_regime_status').insert({
           user_id: user.id,
+          taxpayer_profile_id: taxpayer!.id,
           regime_id: regime.id,
           status: 'active',
           start_date: new Date().toISOString().split('T')[0],
@@ -137,7 +144,7 @@ export default function AdministradorRelacionesPage() {
 
       await supabase.from('taxpayer_regime_status')
         .update({ status: 'inactive', end_date: new Date().toISOString().split('T')[0] })
-        .eq('user_id', user.id)
+        .eq('taxpayer_profile_id', taxpayer!.id)
         .eq('regime_id', regime.id)
 
       await supabase.from('activity_log').insert({

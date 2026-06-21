@@ -13,8 +13,8 @@ import { useNotifications } from '@/hooks/useNotifications'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const { user, profile, loading, error } = useUser()
-  const { progress, activeRegimeCodes } = useProgress(user?.id ?? null)
+  const { user, profile, taxpayerProfile, loading, error } = useUser()
+  const { progress, activeRegimeCodes } = useProgress(user?.id ?? null, taxpayerProfile?.id ?? null)
   const { unreadCount } = useNotifications(user?.id ?? null)
   const didRedirect = useRef(false)
 

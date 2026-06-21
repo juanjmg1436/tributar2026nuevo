@@ -20,7 +20,7 @@ import { formatDate } from '@/lib/utils'
 const STEP_LABELS = ['Identificación', 'Domicilio', 'Actividad', 'Condición', 'Contacto', 'Confirmación']
 
 export default function AltaRutPage() {
-  const { user, loading: userLoading } = useUser()
+  const { user, taxpayerProfile: activeTaxpayerProfile, loading: userLoading } = useUser()
   const [taxpayer, setTaxpayer] = useState<TaxpayerProfile | null>(null)
   const [steps, setSteps] = useState<RegistrationStep[]>([])
   const [currentStep, setCurrentStep] = useState(0)
@@ -40,7 +40,7 @@ export default function AltaRutPage() {
   useEffect(() => {
     if (!user) return
     loadData()
-  }, [user])
+  }, [user, activeTaxpayerProfile?.id])
 
   async function loadData() {
     try {
@@ -57,13 +57,14 @@ export default function AltaRutPage() {
         const { data: stepsData } = await supabase
           .from('registration_steps')
           .select('*')
-          .eq('user_id', user!.id)
+          .eq('taxpayer_profile_id', tp.id)
           .order('step_number')
 
         if (!stepsData || stepsData.length === 0) {
-          // Initialize steps
+          // Initialize steps for this contributor
           const initialSteps = REGISTRATION_STEPS_CONFIG.map(sc => ({
             user_id: user!.id,
+            taxpayer_profile_id: tp.id,
             step_number: sc.step_number,
             step_key: sc.step_key,
             step_name: sc.step_name,
@@ -113,6 +114,7 @@ export default function AltaRutPage() {
       setSaving(true)
       setError(null)
 
+      const tpId = taxpayer?.id
       // Mark current step as completed
       await supabase
         .from('registration_steps')
@@ -121,7 +123,7 @@ export default function AltaRutPage() {
           step_data: extraData,
           completed_at: new Date().toISOString(),
         })
-        .eq('user_id', user.id)
+        .eq('taxpayer_profile_id', tpId)
         .eq('step_key', stepKey)
 
       // If there's a next step, mark it in_progress
@@ -130,7 +132,7 @@ export default function AltaRutPage() {
         await supabase
           .from('registration_steps')
           .update({ status: 'in_progress' })
-          .eq('user_id', user.id)
+          .eq('taxpayer_profile_id', tpId)
           .eq('step_key', nextStepConfig.step_key)
       }
 
@@ -149,7 +151,7 @@ export default function AltaRutPage() {
         await supabase
           .from('taxpayer_profiles')
           .update({ status: 'active' })
-          .eq('user_id', user.id)
+          .eq('id', taxpayer?.id)
         await supabase.from('notifications').insert({
           user_id: user.id,
           title: '¡Alta registral completada!',

@@ -17,7 +17,7 @@ import { Mail, CheckCircle2, Clock, Bell, Info, RefreshCw, BellOff } from 'lucid
 import type { EFiscalAddress } from '@/types'
 
 export default function DomicilioFiscalPage() {
-  const { user, loading: userLoading } = useUser()
+  const { user, taxpayerProfile, loading: userLoading } = useUser()
   const [address, setAddress] = useState<EFiscalAddress | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -32,14 +32,19 @@ export default function DomicilioFiscalPage() {
   useEffect(() => {
     if (!user) return
     loadData()
-  }, [user])
+  }, [user, taxpayerProfile?.id])
 
   async function loadData() {
     try {
       setLoading(true)
+      const profileId = taxpayerProfile?.id
       const [addrRes, regimeRes] = await Promise.all([
-        supabase.from('e_fiscal_address').select('*').eq('user_id', user!.id).single(),
-        supabase.from('taxpayer_regime_status').select('id').eq('user_id', user!.id).eq('status', 'active'),
+        profileId
+          ? supabase.from('e_fiscal_address').select('*').eq('taxpayer_profile_id', profileId).maybeSingle()
+          : supabase.from('e_fiscal_address').select('*').eq('user_id', user!.id).maybeSingle(),
+        profileId
+          ? supabase.from('taxpayer_regime_status' as any).select('id').eq('taxpayer_profile_id', profileId).eq('status', 'active')
+          : supabase.from('taxpayer_regime_status' as any).select('id').eq('user_id', user!.id).eq('status', 'active'),
       ])
       if (addrRes.data) {
         setAddress(addrRes.data)
@@ -59,16 +64,18 @@ export default function DomicilioFiscalPage() {
       setError(null)
       const now = new Date().toISOString()
 
+      const profileId = taxpayerProfile?.id
       if (address) {
         await supabase.from('e_fiscal_address').update({
           status: 'constituted',
           notification_email: email,
           phone: phone || null,
           constitution_date: now,
-        }).eq('user_id', user.id)
+        }).eq(profileId ? 'taxpayer_profile_id' : 'user_id', profileId ?? user.id)
       } else {
         await supabase.from('e_fiscal_address').insert({
           user_id: user.id,
+          ...(profileId ? { taxpayer_profile_id: profileId } : {}),
           status: 'constituted',
           notification_email: email,
           phone: phone || null,

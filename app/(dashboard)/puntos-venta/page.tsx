@@ -27,7 +27,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function PuntosVentaPage() {
-  const { user, loading: userLoading } = useUser()
+  const { user, taxpayerProfile, loading: userLoading } = useUser()
   const [positions, setPositions] = useState<PointOfSale[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -46,15 +46,20 @@ export default function PuntosVentaPage() {
   useEffect(() => {
     if (!user) return
     loadData()
-  }, [user])
+  }, [user, taxpayerProfile?.id])
 
   async function loadData() {
     setLoading(true)
+    const profileId = taxpayerProfile?.id
     const [stepsRes, posRes] = await Promise.all([
-      supabase.from('registration_steps').select('status').eq('user_id', user!.id),
-      supabase.from('points_of_sale').select('*').eq('user_id', user!.id).order('pos_number'),
+      profileId
+        ? supabase.from('registration_steps').select('status').eq('taxpayer_profile_id', profileId)
+        : supabase.from('registration_steps').select('status').eq('user_id', user!.id),
+      profileId
+        ? supabase.from('points_of_sale').select('*').eq('taxpayer_profile_id', profileId).order('pos_number')
+        : supabase.from('points_of_sale').select('*').eq('user_id', user!.id).order('pos_number'),
     ])
-    const completed = (stepsRes.data || []).filter(s => s.status === 'completed').length
+    const completed = (stepsRes.data || []).filter((s: any) => s.status === 'completed').length
     setIsRegistrationComplete(completed === 6)
     setPositions(posRes.data || [])
     setLoading(false)
@@ -67,8 +72,10 @@ export default function PuntosVentaPage() {
       setError(null)
       const nextNumber = positions.length > 0 ? Math.max(...positions.map(p => p.pos_number)) + 1 : 1
 
+      const profileId = taxpayerProfile?.id
       const { error: insertErr } = await supabase.from('points_of_sale').insert({
         user_id: user.id,
+        ...(profileId ? { taxpayer_profile_id: profileId } : {}),
         pos_number: nextNumber,
         name: data.name,
         modality: data.modality,
