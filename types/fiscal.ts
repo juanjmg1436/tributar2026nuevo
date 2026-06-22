@@ -324,6 +324,14 @@ export interface PayrollCalculation {
   totalLaborCost: number
 }
 
+export interface TramoPHResult {
+  desde: number
+  hasta: number
+  tasa: number
+  base: number
+  impuesto: number
+}
+
 export interface IncomeTaxCalculation {
   period: string
   totalIncome: number
@@ -339,6 +347,18 @@ export interface IncomeTaxCalculation {
   withholdings: number
   previousCredit: number
   netPayable: number
+  // Deducciones PH (art. 23 Ley 20628)
+  mniDeduccion?: number
+  deduccionEspecial?: number
+  deduccionConyuge?: number
+  deduccionHijos?: number
+  deduccionGastosMedicos?: number
+  totalDeducciones?: number
+  // Escala progresiva PH
+  tramosPH?: TramoPHResult[]
+  // Quebrantos
+  hasQuebranto?: boolean
+  quebranto?: number
 }
 
 // ── Estado fiscal integral ─────────────────────────────────────────────────────
