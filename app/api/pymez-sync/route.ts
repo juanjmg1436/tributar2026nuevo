@@ -148,6 +148,55 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // ── 3. Resumen IIBB: suma de ventas netas para base imponible ─────────────
+  if (action === 'iibb-summary') {
+    const token  = searchParams.get('token')?.trim().toUpperCase()
+    const period = searchParams.get('period')
+
+    if (!token || !period) {
+      return NextResponse.json({ error: 'Se requieren token y period.' }, { status: 400 })
+    }
+
+    const { data: company } = await db
+      .from('companies')
+      .select('id, name, cuit')
+      .eq('sync_token', token)
+      .maybeSingle()
+
+    if (!company) {
+      return NextResponse.json(
+        { error: 'Código incorrecto. Verificá el código en PyMEZ 360 → Mi Empresa.' },
+        { status: 403 },
+      )
+    }
+
+    const [year, month] = period.split('-').map(Number)
+    const dateFrom = `${period}-01`
+    const dateTo   = new Date(year, month, 0).toISOString().split('T')[0]
+
+    const { data: sales, error: salesErr } = await db
+      .from('sales')
+      .select('total, iva_rate, document_type, status')
+      .eq('company_id', company.id)
+      .gte('date', dateFrom)
+      .lte('date', dateTo)
+      .neq('status', 'anulado')
+
+    if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
+
+    // Base IIBB = precio neto sin IVA (sales.total en PyMEZ es el neto)
+    const totalSalesNet = (sales ?? []).reduce((sum, s) => sum + (s.total ?? 0), 0)
+
+    return NextResponse.json({
+      ok: true,
+      company_name:    company.name,
+      company_cuit:    company.cuit,
+      period,
+      total_sales_net: Math.round(totalSalesNet * 100) / 100,
+      invoice_count:   (sales ?? []).length,
+    })
+  }
+
   return NextResponse.json({ error: 'action no reconocida' }, { status: 400 })
 }
 

@@ -5,10 +5,10 @@ import { useProgress } from '@/hooks/useProgress'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import {
-  Trophy, Star, Lock, CheckCircle2, ChevronRight,
+  Trophy, Lock, CheckCircle2, ChevronRight,
   User, FileText, Building2, CreditCard, Wallet,
   Receipt, Users, DollarSign, MapPin, BookOpen,
-  BarChart3, Target, Zap,
+  BarChart3, Target, Zap, Link2, Calculator,
 } from 'lucide-react'
 
 interface Desafio {
@@ -204,6 +204,48 @@ export default function DesafiosPage() {
       categoria: 'Billetera Fiscal',
     },
 
+    // ── Régimen General ─────────────────────────────────────────────────────
+    {
+      id: 'rg-pymez',
+      titulo: 'Conectar facturación (PyMEZ 360)',
+      descripcion: 'Sincronizá las ventas y compras del período para calcular IVA e IIBB automáticamente.',
+      href: '/regimen-general',
+      icon: <Link2 className="w-5 h-5" />,
+      puntos: 150,
+      categoria: 'Régimen General',
+      bloqueado: !progress?.hasActiveRegime,
+    },
+    {
+      id: 'rg-iva-ddjj',
+      titulo: 'Calcular y presentar DDJJ IVA',
+      descripcion: 'Determiná el débito y crédito fiscal del período. El saldo a pagar se genera como VEP.',
+      href: '/regimen-general',
+      icon: <Calculator className="w-5 h-5" />,
+      puntos: 200,
+      categoria: 'Régimen General',
+      bloqueado: !progress?.hasActiveRegime,
+    },
+    {
+      id: 'rg-ganancias',
+      titulo: 'Anticipo de Ganancias',
+      descripcion: 'Calculá el anticipo mensual de Impuesto a las Ganancias sobre la utilidad estimada.',
+      href: '/regimen-general',
+      icon: <BarChart3 className="w-5 h-5" />,
+      puntos: 150,
+      categoria: 'Régimen General',
+      bloqueado: !progress?.hasActiveRegime,
+    },
+    {
+      id: 'rg-factura-a',
+      titulo: 'Emitir factura tipo A',
+      descripcion: 'Generá un comprobante tipo A para un cliente Responsable Inscripto.',
+      href: '/comprobantes/nuevo',
+      icon: <Receipt className="w-5 h-5" />,
+      puntos: 100,
+      categoria: 'Régimen General',
+      bloqueado: !progress?.hasPOS,
+    },
+
     // ── Provincial ──────────────────────────────────────────────────────────
     {
       id: 'prov-inscripcion',
@@ -215,12 +257,21 @@ export default function DesafiosPage() {
       categoria: 'Impuestos provinciales',
     },
     {
-      id: 'prov-ddjj',
+      id: 'prov-ddjj-manual',
       titulo: 'Presentar DDJJ de IIBB',
       descripcion: 'Declaración jurada mensual de Ingresos Brutos ante la ATM Misiones.',
       href: '/misiones/iibb/nueva',
       icon: <BookOpen className="w-5 h-5" />,
       puntos: 200,
+      categoria: 'Impuestos provinciales',
+    },
+    {
+      id: 'prov-ddjj-pymez',
+      titulo: 'DDJJ IIBB con datos de PyMEZ 360',
+      descripcion: 'Importá los ingresos de facturación directamente desde PyMEZ 360 para pre-completar la base imponible de IIBB.',
+      href: '/misiones/iibb/nueva',
+      icon: <Link2 className="w-5 h-5" />,
+      puntos: 250,
       categoria: 'Impuestos provinciales',
     },
   ]
