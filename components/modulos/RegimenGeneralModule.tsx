@@ -423,10 +423,16 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — SIN VALIDEZ FISCAL NI LEGAL</p>
-        <Link href={tab === 'ganancias' ? '/ganancias' : '/iva'}
-          className="ml-auto text-xs font-semibold text-amber-700 hover:underline flex items-center gap-1 whitespace-nowrap">
-          Pantalla completa <ExternalLink className="w-3 h-3" />
-        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          <Link href="/regimen-general/constancia"
+            className="text-xs font-semibold text-emerald-700 hover:underline flex items-center gap-1 whitespace-nowrap">
+            <FileText className="w-3 h-3" /> Constancia RI
+          </Link>
+          <Link href={tab === 'ganancias' ? '/ganancias' : '/iva'}
+            className="text-xs font-semibold text-amber-700 hover:underline flex items-center gap-1 whitespace-nowrap">
+            Pantalla completa <ExternalLink className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -821,6 +827,12 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
                         {ivaVepPaid ? 'Pagado ✓' : 'Pagar ahora'}
                       </Button>
                       {ivaVep?.comprobante_number && <p className="text-[9px] text-slate-400 mt-1 truncate">Comp: {ivaVep.comprobante_number}</p>}
+                      {ivaVepPaid && ivaVep && (
+                        <Link href={`/regimen-general/vep/iva/${ivaPeriod}`}
+                          className="mt-1 flex items-center gap-1 text-[10px] text-emerald-700 hover:underline">
+                          <Download className="w-3 h-3" /> Descargar comprobante
+                        </Link>
+                      )}
                     </div>
                   )}
 
@@ -1197,6 +1209,12 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
                         <CreditCard className="w-3 h-3 mr-1" />{ganVepPaid ? 'Pagado ✓' : 'Pagar ahora'}
                       </Button>
                       {ganVep?.comprobante_number && <p className="text-[9px] text-slate-400 mt-1 truncate">Comp: {ganVep.comprobante_number}</p>}
+                      {ganVepPaid && ganVep && (
+                        <Link href={`/regimen-general/vep/ganancias/${fiscalYear}-12`}
+                          className="mt-1 flex items-center gap-1 text-[10px] text-violet-700 hover:underline">
+                          <Download className="w-3 h-3" /> Descargar comprobante
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>
