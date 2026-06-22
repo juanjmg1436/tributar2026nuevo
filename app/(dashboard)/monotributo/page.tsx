@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Card } from '@/components/ui/Card'
@@ -10,11 +11,25 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { useRegime } from '@/hooks/useRegime'
 import { RegimeGate } from '@/components/ui/RegimeGate'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { suggestMonotributoCategory, calculateMonotributoQuota, checkRecategorizacion } from '@/lib/fiscal-engine/monotributo'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import {
+  suggestMonotributoCategory,
+  calculateMonotributoQuota,
+  checkRecategorizacion,
+  calculateMora,
+  isPeriodOverdue,
+  daysToNextDue,
+  nextRecategorizationDate,
+} from '@/lib/fiscal-engine/monotributo'
 import { formatPeriod, currentPeriod, generateVepNumber, generateComprobanteNumber } from '@/lib/fiscal-engine'
 import type { MonotributoDemoCategory, MonotributoProfile, MonotributoPayment } from '@/types/fiscal'
-import { AlertTriangle, Info, CheckCircle, CreditCard, TrendingUp, RefreshCw, Zap } from 'lucide-react'
+import {
+  AlertTriangle, Info, CheckCircle, CreditCard, Zap,
+  Clock, ChevronRight, ArrowUpRight, ArrowDownRight,
+  BarChart3, Calculator, FileText, BookOpen, AlertCircle,
+} from 'lucide-react'
+
+type Tab = 'situacion' | 'cuotas' | 'tabla' | 'simulador'
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
@@ -22,54 +37,84 @@ export default function MonotributoPage() {
   const { user, loading: userLoading } = useUser()
   const regime = useRegime()
   const supabase = createClient()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [step, setStep] = useState<'check' | 'setup' | 'dashboard'>('check')
+  const [loading, setLoading]   = useState(true)
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+  const [success, setSuccess]   = useState<string | null>(null)
+  const [tab, setTab]           = useState<Tab>('situacion')
 
   const [categories, setCategories] = useState<MonotributoDemoCategory[]>([])
-  const [profile, setProfile] = useState<MonotributoProfile | null>(null)
-  const [payments, setPayments] = useState<MonotributoPayment[]>([])
+  const [profile, setProfile]       = useState<MonotributoProfile | null>(null)
+  const [payments, setPayments]     = useState<MonotributoPayment[]>([])
+  const [annualIncome, setAnnualIncome] = useState(0)   // suma de facturas reales
 
-  // Formulario de alta
+  // Wizard
   const [formActivityType, setFormActivityType] = useState<'servicios' | 'bienes'>('servicios')
   const [formAnnualRevenue, setFormAnnualRevenue] = useState('')
   const [formStartDate, setFormStartDate] = useState(new Date().toISOString().split('T')[0])
 
-  // Pago mensual
+  // Cuotas
   const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod())
-  const [paymentMethod, setPaymentMethod] = useState('transferencia')
+  const [paymentMethod, setPaymentMethod]   = useState('transferencia')
 
-  useEffect(() => { if (!user) return; loadData() }, [user])
+  // Simulador
+  const [simRevenue, setSimRevenue]         = useState('')
+  const [simActivity, setSimActivity]       = useState<'servicios' | 'bienes'>('servicios')
+
+  useEffect(() => { if (user) loadData() }, [user])
 
   async function loadData() {
     setLoading(true)
     const db = supabase as any
-    const [catRes, profRes, payRes] = await Promise.all([
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+
+    const [catRes, profRes, payRes, invRes] = await Promise.all([
       db.from('monotributo_demo_categories').select('*').eq('is_active', true).order('max_annual_income'),
       db.from('monotributo_profiles').select('*').eq('user_id', user!.id).maybeSingle(),
       db.from('monotributo_payments').select('*').eq('user_id', user!.id).order('period', { ascending: false }).limit(12),
+      // CORRECCIÓN: ingresos reales de facturas, no de cuotas pagadas
+      db.from('invoices').select('total').eq('user_id', user!.id).neq('status', 'cancelled')
+        .gte('issue_date', oneYearAgo.toISOString().split('T')[0]),
     ])
     setCategories(catRes.data || [])
     setProfile(profRes.data || null)
     setPayments(payRes.data || [])
-    setStep(profRes.data ? 'dashboard' : 'check')
+    const income = (invRes.data || []).reduce((s: number, r: any) => s + parseFloat(r.total || 0), 0)
+    setAnnualIncome(income)
     setLoading(false)
   }
 
-  const suggestedCat = suggestMonotributoCategory(parseFloat(formAnnualRevenue) || 0, categories, formActivityType)
   const currentCat = profile ? categories.find(c => c.category_code === profile.category_code) : null
-  const quota = currentCat ? calculateMonotributoQuota(currentCat, profile?.activity_type || 'servicios') : null
+  const quota       = currentCat ? calculateMonotributoQuota(currentCat, profile?.activity_type ?? 'servicios') : null
+  const recatResult = (profile && categories.length > 0)
+    ? checkRecategorizacion(profile.category_code, annualIncome, categories, profile.activity_type)
+    : null
 
-  // Acumulado últimos 12 meses (sum de payments pagados)
-  const accumulated = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.total_amount, 0)
-  const recatResult = profile && categories.length > 0 ? checkRecategorizacion(
-    profile.category_code,
-    accumulated,
-    categories,
-    profile.activity_type
-  ) : null
+  // Wizard suggestion
+  const suggestedCat = suggestMonotributoCategory(parseFloat(formAnnualRevenue) || 0, categories, formActivityType)
+
+  // Simulador
+  const simCat   = simRevenue ? suggestMonotributoCategory(parseFloat(simRevenue) || 0, categories, simActivity) : null
+  const simQuota = simCat ? calculateMonotributoQuota(simCat, simActivity) : null
+
+  // Vencimiento período actual
+  const now          = currentPeriod()
+  const daysLeft     = daysToNextDue(now)
+  const nowOverdue   = isPeriodOverdue(now)
+  const nowPayment   = payments.find(p => p.period === now)
+
+  // Pago del período seleccionado
+  const selPayment = payments.find(p => p.period === selectedPeriod)
+  const moraInfo   = quota ? calculateMora(quota.total, selectedPeriod) : null
+
+  const periodOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(); d.setMonth(d.getMonth() - i)
+    return {
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label:  `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+    }
+  })
 
   async function handleSetupProfile() {
     if (!user || !suggestedCat) { setError('Completá los datos para continuar.'); return }
@@ -85,11 +130,8 @@ export default function MonotributoPage() {
         current_since: formStartDate,
         status: 'active',
       }
-      if (profile) {
-        await db.from('monotributo_profiles').update(payload).eq('id', profile.id)
-      } else {
-        await db.from('monotributo_profiles').insert(payload)
-      }
+      if (profile) await db.from('monotributo_profiles').update(payload).eq('id', profile.id)
+      else         await db.from('monotributo_profiles').insert(payload)
       setSuccess('Perfil monotributista configurado.')
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
@@ -100,10 +142,9 @@ export default function MonotributoPage() {
     if (!user || !profile) return
     setSaving(true); setError(null)
     try {
-      await (supabase as any).from('monotributo_profiles').update({
-        category_code: newCode,
-        current_since: new Date().toISOString().split('T')[0],
-      }).eq('id', profile.id)
+      await (supabase as any).from('monotributo_profiles')
+        .update({ category_code: newCode, current_since: new Date().toISOString().split('T')[0] })
+        .eq('id', profile.id)
       setSuccess(`Recategorizado a Categoría ${newCode}.`)
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
@@ -112,298 +153,658 @@ export default function MonotributoPage() {
 
   async function handlePayQuota() {
     if (!user || !quota || !currentCat) return
+    if (selPayment?.status === 'paid') { setError('Este período ya está pagado.'); return }
     setSaving(true); setError(null); setSuccess(null)
     try {
-      const db = supabase as any
-      const existing = await db.from('monotributo_payments').select('*').eq('user_id', user.id).eq('period', selectedPeriod).maybeSingle()
-      const dueDate = `${selectedPeriod.split('-')[0]}-${selectedPeriod.split('-')[1]}-20`
-
-      if (existing.data && existing.data.status === 'paid') {
-        setError('Este período ya está pagado.')
-        setSaving(false)
-        return
-      }
+      const db   = supabase as any
+      const mora = calculateMora(quota.total, selectedPeriod)
+      const due  = `${selectedPeriod}-20`
+      const existing = await db.from('monotributo_payments')
+        .select('id').eq('user_id', user.id).eq('period', selectedPeriod).maybeSingle()
 
       const payPayload = {
-        user_id: user.id,
-        period: selectedPeriod,
-        period_label: formatPeriod(selectedPeriod),
-        due_date: dueDate,
-        category_code: currentCat.category_code,
-        tax_component: quota.taxComponent,
-        sipa_component: quota.sipaComponent,
-        obra_social_component: quota.obraSocialComponent,
-        total_amount: quota.total,
-        surcharge: 0,
-        status: 'paid',
-        paid_at: new Date().toISOString(),
+        user_id: user.id, period: selectedPeriod, period_label: formatPeriod(selectedPeriod),
+        due_date: due, category_code: currentCat.category_code,
+        tax_component: quota.taxComponent, sipa_component: quota.sipaComponent,
+        obra_social_component: quota.obraSocialComponent, total_amount: quota.total,
+        surcharge: mora.surcharge, status: 'paid', paid_at: new Date().toISOString(),
       }
+      if (existing.data) await db.from('monotributo_payments').update(payPayload).eq('id', existing.data.id)
+      else               await db.from('monotributo_payments').insert(payPayload)
 
-      const vepPayload = {
-        user_id: user.id,
-        vep_number: generateVepNumber(),
-        obligation_type: 'monotributo',
-        concept: `Monotributo Categoría ${currentCat.category_code} — ${formatPeriod(selectedPeriod)}`,
-        period: selectedPeriod,
-        amount: quota.total,
-        due_date: dueDate,
-        payment_method: paymentMethod,
-        status: 'paid',
-        paid_at: new Date().toISOString(),
+      await db.from('simulated_veps').insert({
+        user_id: user.id, vep_number: generateVepNumber(), obligation_type: 'monotributo',
+        concept: `Monotributo Cat. ${currentCat.category_code} — ${formatPeriod(selectedPeriod)}${mora.surcharge > 0 ? ` (+mora)` : ''}`,
+        period: selectedPeriod, amount: mora.totalWithMora, due_date: due,
+        payment_method: paymentMethod, status: 'paid', paid_at: new Date().toISOString(),
         comprobante_number: generateComprobanteNumber(),
-      }
+      })
 
-      if (existing.data) {
-        await db.from('monotributo_payments').update(payPayload).eq('id', existing.data.id)
-      } else {
-        await db.from('monotributo_payments').insert(payPayload)
-      }
-      await db.from('simulated_veps').insert(vepPayload)
-
-      setSuccess(`Cuota de ${formatPeriod(selectedPeriod)} pagada: ${formatCurrency(quota.total)}`)
+      setSuccess(mora.surcharge > 0
+        ? `Cuota ${formatPeriod(selectedPeriod)}: ${formatCurrency(mora.totalWithMora)} (${mora.daysLate} días mora)`
+        : `Cuota ${formatPeriod(selectedPeriod)}: ${formatCurrency(quota.total)} ✓`)
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
     finally { setSaving(false) }
   }
 
-  const periodOptions = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - i)
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    return { value: val, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` }
-  })
+  if (userLoading || loading || regime.loading) {
+    return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+  }
 
-  const periodPayment = payments.find(p => p.period === selectedPeriod)
+  const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+    { id: 'situacion',  label: 'Mi Situación', icon: <BarChart3  className="w-3.5 h-3.5" /> },
+    { id: 'cuotas',     label: 'Cuotas',        icon: <CreditCard className="w-3.5 h-3.5" /> },
+    { id: 'tabla',      label: 'Tabla',          icon: <FileText   className="w-3.5 h-3.5" /> },
+    { id: 'simulador',  label: 'Simulador',      icon: <Calculator className="w-3.5 h-3.5" /> },
+  ]
 
-  if (userLoading || loading || regime.loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+  const maxCatLimit = categories.length > 0 ? Math.max(...categories.map(c => c.max_annual_income)) : 0
 
   return (
-    <PageContainer title="Monotributo" subtitle="Categorías, cuotas mensuales y recategorización (simulación didáctica)">
+    <PageContainer title="Monotributo" subtitle="Régimen Simplificado — ARCA 2026">
+
       {!regime.canUseMonotributo && (
-        <RegimeGate
-          moduleName="Monotributo"
-          reason={regime.monotributoBlockReason!}
-          currentRegime={regime.label}
-          alternativeHref="/iva"
-          alternativeLabel="Ir a DDJJ IVA →"
-        />
+        <RegimeGate moduleName="Monotributo" reason={regime.monotributoBlockReason!}
+          currentRegime={regime.label} alternativeHref="/iva" alternativeLabel="Ir a DDJJ IVA →" />
       )}
+
       {regime.canUseMonotributo && (<>
-      {/* Disclaimer */}
-      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
-        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-        <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
-      </div>
 
-      {/* Info pedagógica */}
-      <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">
-        <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          <strong>¿Qué es el Monotributo?</strong> Régimen simplificado que unifica en una cuota mensual el impuesto a las ganancias, el IVA y las cargas previsionales.
-          La categoría se determina por la facturación anual acumulada. Cada semestre (enero y julio) se debe <em>recategorizar</em> si los ingresos cambiaron significativamente.
-          Las 11 categorías (A a K) tienen montos actualizados por ARCA periódicamente.
-        </p>
-      </div>
+        {/* Disclaimer */}
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 flex gap-2 items-center">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — SIN VALIDEZ FISCAL NI LEGAL</p>
+        </div>
 
-      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
-      {success && <Alert variant="success" className="mb-4">{success}</Alert>}
+        {error   && <Alert variant="error"   className="mb-4">{error}</Alert>}
+        {success && <Alert variant="success" className="mb-4">{success}</Alert>}
 
-      {/* Sin perfil: wizard */}
-      {!profile && (
-        <Card padding="md" className="mb-5 border-primary-200 bg-primary-50/20">
-          <h3 className="font-semibold text-slate-700 mb-1">Configurar perfil Monotributista</h3>
-          <p className="text-xs text-slate-500 mb-4">Ingresá tus datos para determinar tu categoría según facturación anual estimada.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de actividad</label>
-              <select value={formActivityType} onChange={e => setFormActivityType(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
-                <option value="servicios">Servicios</option>
-                <option value="bienes">Venta de bienes</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Facturación anual estimada ($)</label>
-              <input type="number" min="0" value={formAnnualRevenue} onChange={e => setFormAnnualRevenue(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Ej: 3500000" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de inicio</label>
-              <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
-            </div>
-          </div>
-          {suggestedCat && formAnnualRevenue && (
-            <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-sm font-bold text-emerald-700">
-                Categoría sugerida: <span className="text-lg">{suggestedCat.category_code}</span> — {suggestedCat.label}
-              </p>
-              <p className="text-xs text-emerald-600 mt-0.5">
-                Límite anual: {formatCurrency(suggestedCat.max_annual_income)} · Cuota mensual: {formatCurrency(formActivityType === 'servicios' ? suggestedCat.monthly_total_services : suggestedCat.monthly_total_goods)}
-              </p>
-            </div>
-          )}
-          {!suggestedCat && formAnnualRevenue && parseFloat(formAnnualRevenue) > 0 && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm font-semibold text-red-700">Tu facturación supera el límite del Monotributo. Debés inscribirte como Responsable Inscripto.</p>
-            </div>
-          )}
-          <div className="mt-4 flex gap-2">
-            <Button size="sm" onClick={handleSetupProfile} loading={saving} disabled={!suggestedCat}>
-              Confirmar categoría
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Con perfil: dashboard */}
-      {profile && currentCat && quota && (
-        <>
-          {/* Categoría actual */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
-            <Card padding="md" className="sm:col-span-2 bg-primary-50 border-primary-200">
-              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Categoría actual</p>
-              <p className="text-3xl font-black text-primary-700">{currentCat.category_code}</p>
-              <p className="text-sm text-slate-600">{currentCat.label}</p>
-              <p className="text-xs text-slate-400 mt-1">Vigente desde: {formatDate(profile.current_since)}</p>
-              <p className="text-xs text-slate-400">Actividad: {profile.activity_type}</p>
-            </Card>
-            <Card padding="md" className="text-center">
-              <p className="text-xs font-semibold text-slate-500 mb-1">Cuota mensual</p>
-              <p className="text-xl font-bold text-slate-800">{formatCurrency(quota.total)}</p>
-              <p className="text-xs text-slate-400 mt-1">Impuesto: {formatCurrency(quota.taxComponent)}</p>
-              <p className="text-xs text-slate-400">SIPA: {formatCurrency(quota.sipaComponent)}</p>
-              <p className="text-xs text-slate-400">Obra social: {formatCurrency(quota.obraSocialComponent)}</p>
-            </Card>
-            <Card padding="md" className="text-center">
-              <p className="text-xs font-semibold text-slate-500 mb-1">Límite anual</p>
-              <p className="text-xl font-bold text-slate-800">{formatCurrency(currentCat.max_annual_income)}</p>
-              <p className="text-xs text-slate-400 mt-1">Facturado (aprox):</p>
-              <p className="text-sm font-semibold text-slate-700">{formatCurrency(accumulated)}</p>
-            </Card>
-          </div>
-
-          {/* Alerta recategorización */}
-          {recatResult && recatResult.shouldRecategorize && (
-            <div className={`mb-5 p-4 rounded-xl border-2 ${recatResult.percentUsed >= 100 ? 'bg-red-50 border-red-400' : 'bg-amber-50 border-amber-400'}`}>
-              <div className="flex items-start gap-3">
-                <Zap className={`w-5 h-5 mt-0.5 ${recatResult.percentUsed >= 100 ? 'text-red-500' : 'text-amber-500'}`} />
-                <div className="flex-1">
-                  <p className={`text-sm font-bold ${recatResult.percentUsed >= 100 ? 'text-red-700' : 'text-amber-700'}`}>
-                    {recatResult.percentUsed >= 100 ? '⚠ RECATEGORIZACIÓN OBLIGATORIA' : '📋 Revisión de categoría sugerida'}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">{recatResult.reason}</p>
-                  <div className="mt-2 bg-white bg-opacity-60 rounded-lg h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-lg ${recatResult.percentUsed >= 100 ? 'bg-red-500' : recatResult.percentUsed >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                      style={{ width: `${Math.min(recatResult.percentUsed, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">{recatResult.percentUsed}% del límite utilizado</p>
-                  {recatResult.suggestedCategory && recatResult.suggestedCategory !== profile.category_code && (
-                    <Button size="sm" className="mt-3" onClick={() => handleRecategorize(recatResult.suggestedCategory!)} loading={saving}>
-                      Recategorizar a {recatResult.suggestedCategory}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Pago mensual */}
+        {/* ──────────────── WIZARD (sin perfil) ──────────────── */}
+        {!profile && (
           <Card padding="md" className="mb-5">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Pago de cuota mensual</p>
-            <div className="flex flex-wrap gap-3 items-end mb-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Período</label>
-                <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm">
-                  {periodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Medio de pago</label>
-                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" disabled={periodPayment?.status === 'paid'}>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="debito_automatico">Débito automático</option>
-                  <option value="pago_electronico">Pago electrónico</option>
-                </select>
-              </div>
-              <Button
-                size="sm"
-                onClick={handlePayQuota}
-                loading={saving}
-                disabled={periodPayment?.status === 'paid'}
-              >
-                <CreditCard className="w-3.5 h-3.5 mr-1" />
-                {periodPayment?.status === 'paid' ? `Pagado ✓` : `Pagar ${formatCurrency(quota.total)}`}
-              </Button>
+            <h3 className="font-bold text-slate-800 mb-1">Configurar perfil Monotributista</h3>
+            <p className="text-xs text-slate-500 mb-4">Ingresá tus datos para determinar tu categoría según ingresos brutos anuales.</p>
+
+            {/* 4 parámetros */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              {[
+                { icon: '💰', label: 'Ingresos anuales' },
+                { icon: '📐', label: 'Superficie (m²)' },
+                { icon: '⚡', label: 'Energía (kWh/año)' },
+                { icon: '🏠', label: 'Alquileres anuales' },
+              ].map(item => (
+                <div key={item.label} className="bg-blue-50 border border-blue-100 rounded-lg p-2 text-center">
+                  <p className="text-lg mb-0.5">{item.icon}</p>
+                  <p className="text-[10px] text-blue-700 font-medium">{item.label}</p>
+                </div>
+              ))}
             </div>
-            {periodPayment?.status === 'paid' && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <p className="text-sm text-emerald-700 font-semibold">Cuota de {formatPeriod(selectedPeriod)} pagada el {formatDate(periodPayment.paid_at!)}</p>
+            <p className="text-[11px] text-slate-500 mb-4">
+              El parámetro más elevado determina la categoría (art. 8 Ley 26565). Este simulador usa ingresos.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de actividad</label>
+                <select value={formActivityType} onChange={e => setFormActivityType(e.target.value as 'servicios' | 'bienes')}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="servicios">Prestación de servicios</option>
+                  <option value="bienes">Venta de bienes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Ingresos brutos anuales ($)</label>
+                <input type="number" min="0" value={formAnnualRevenue} onChange={e => setFormAnnualRevenue(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Ej: 15.000.000" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Inicio de actividad</label>
+                <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              </div>
+            </div>
+
+            {formAnnualRevenue && (
+              <div className={cn('p-4 rounded-xl border-2 mb-4', suggestedCat ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300')}>
+                {suggestedCat ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-4xl font-black text-emerald-700">{suggestedCat.category_code}</span>
+                      <div>
+                        <p className="font-bold text-emerald-800">Categoría sugerida</p>
+                        <p className="text-xs text-emerald-600">Límite anual: {formatCurrency(suggestedCat.max_annual_income)}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Impuesto integrado', val: formActivityType === 'servicios' ? suggestedCat.monthly_tax_services : suggestedCat.monthly_tax_goods },
+                        { label: 'SIPA (jubilación)',  val: suggestedCat.monthly_sipa },
+                        { label: 'Obra social',         val: suggestedCat.monthly_obra_social },
+                      ].map(item => (
+                        <div key={item.label} className="bg-white rounded-lg p-2 text-center border border-emerald-200">
+                          <p className="text-[10px] text-slate-500">{item.label}</p>
+                          <p className="text-sm font-bold">{formatCurrency(item.val)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs font-bold text-emerald-700 mt-2 text-center">
+                      Cuota mensual total: {formatCurrency(formActivityType === 'servicios' ? suggestedCat.monthly_total_services : suggestedCat.monthly_total_goods)}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-red-800 mb-1">⚠ Supera el límite del Monotributo</p>
+                    <p className="text-xs text-red-700">
+                      Tus ingresos superan el tope de Categoría K ({formatCurrency(maxCatLimit)}).
+                      Debés inscribirte como Responsable Inscripto y presentar DDJJ de IVA y Ganancias.
+                    </p>
+                  </>
+                )}
               </div>
             )}
-          </Card>
 
-          {/* Historial de pagos */}
-          {payments.length > 0 && (
-            <Card padding="md" className="mb-5">
-              <p className="text-sm font-semibold text-slate-700 mb-3">Historial de cuotas</p>
-              <div className="space-y-1">
-                {payments.map(p => (
-                  <div key={p.id} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
-                    <span className="text-slate-600 font-medium">{p.period_label}</span>
-                    <span className="text-slate-400">Cat. {p.category_code}</span>
-                    <span className="font-semibold text-slate-700">{formatCurrency(p.total_amount)}</span>
-                    <span className={`px-2 py-0.5 rounded-full font-bold ${
-                      p.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                      p.status === 'overdue' ? 'bg-red-100 text-red-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {p.status === 'paid' ? 'Pagado' : p.status === 'overdue' ? 'Vencido' : 'Pendiente'}
-                    </span>
-                  </div>
-                ))}
+            <Button size="sm" onClick={handleSetupProfile} loading={saving} disabled={!suggestedCat || !formAnnualRevenue}>
+              Confirmar categoría y guardar perfil
+            </Button>
+          </Card>
+        )}
+
+        {/* ──────────────── DASHBOARD ──────────────── */}
+        {profile && currentCat && quota && (<>
+
+          {/* Alerta vencimiento */}
+          {nowPayment?.status !== 'paid' && (
+            <div className={cn('mb-4 px-4 py-3 rounded-xl border-2 flex items-center gap-3',
+              nowOverdue ? 'bg-red-50 border-red-300' : daysLeft <= 3 ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-200'
+            )}>
+              <Clock className={cn('w-4 h-4 flex-shrink-0', nowOverdue ? 'text-red-500' : daysLeft <= 3 ? 'text-amber-500' : 'text-blue-500')} />
+              <div className="flex-1 min-w-0">
+                <p className={cn('text-sm font-bold', nowOverdue ? 'text-red-800' : daysLeft <= 3 ? 'text-amber-800' : 'text-blue-800')}>
+                  {nowOverdue
+                    ? `Cuota ${formatPeriod(now)} VENCIDA — ${Math.abs(daysLeft)} días de mora`
+                    : `Cuota ${formatPeriod(now)} vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (día 20)`
+                  }
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {nowOverdue
+                    ? `Recargo estimado: ${formatCurrency(calculateMora(quota.total, now).surcharge)} — art. 37 Ley 11683`
+                    : 'Podés pagar por transferencia, débito automático o pago electrónico'
+                  }
+                </p>
               </div>
-            </Card>
+              <button
+                onClick={() => { setTab('cuotas'); setSelectedPeriod(now) }}
+                className={cn('text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap text-white', nowOverdue ? 'bg-red-600' : 'bg-blue-600')}
+              >
+                Pagar →
+              </button>
+            </div>
+          )}
+          {nowPayment?.status === 'paid' && (
+            <div className="mb-4 px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <p className="text-sm text-emerald-700 font-medium">Cuota {formatPeriod(now)} pagada ✓</p>
+            </div>
           )}
 
-          {/* Tabla de categorías */}
-          <Card padding="md" className="mb-5">
-            <p className="text-sm font-semibold text-slate-700 mb-3">Tabla de categorías 2026 (demo)</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left py-2 px-2 font-semibold text-slate-600">Cat.</th>
-                    <th className="text-right py-2 px-2 font-semibold text-slate-600">Límite anual</th>
-                    <th className="text-right py-2 px-2 font-semibold text-slate-600">Cuota servicios</th>
-                    <th className="text-right py-2 px-2 font-semibold text-slate-600">Cuota bienes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.map(cat => (
-                    <tr key={cat.id} className={`border-b border-slate-100 ${cat.category_code === profile.category_code ? 'bg-primary-50 font-semibold' : ''}`}>
-                      <td className="py-1.5 px-2 font-bold text-slate-800">{cat.category_code}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-700">{formatCurrency(cat.max_annual_income)}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-700">{formatCurrency(cat.monthly_total_services)}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-700">{formatCurrency(cat.monthly_total_goods)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* Cambiar perfil */}
-          <div className="flex gap-3 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => { setProfile(null); setStep('check') }}>
-              Cambiar configuración
-            </Button>
-            <a href="/estado-fiscal"><Button variant="outline" size="sm">Estado fiscal integral →</Button></a>
+          {/* Tabs */}
+          <div className="flex gap-1 mb-5 p-1 bg-slate-100 rounded-xl">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all',
+                  tab === t.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                )}>
+                {t.icon}<span className="hidden sm:inline">{t.label}</span>
+              </button>
+            ))}
           </div>
-        </>
-      )}
+
+          {/* ══════════════ TAB: MI SITUACIÓN ══════════════ */}
+          {tab === 'situacion' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Categoría */}
+                <Card padding="md" className="bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
+                  <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest mb-2">CATEGORÍA ACTUAL</p>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-5xl font-black text-primary-700">{currentCat.category_code}</span>
+                    <span className="text-xs text-primary-500">Monotributo</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-1">{profile.activity_type === 'servicios' ? 'Prestación de servicios' : 'Venta de bienes'}</p>
+                  <p className="text-[10px] text-slate-400">Desde {formatDate(profile.current_since)}</p>
+                  <p className="text-[10px] text-slate-400">Próx. recategorización: {nextRecategorizationDate()}</p>
+                </Card>
+
+                {/* Desglose cuota */}
+                <Card padding="md" className="sm:col-span-2">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                    CUOTA MENSUAL — {formatCurrency(quota.total)}
+                  </p>
+                  <div className="space-y-2.5">
+                    {[
+                      { label: 'Impuesto integrado', sub: 'Reemplaza IVA + Ganancias', amount: quota.taxComponent, pct: quota.taxPct, color: 'bg-primary-500', tip: 'No presentás DDJJ de IVA ni Ganancias.' },
+                      { label: 'SIPA',               sub: 'Jubilación y retiro',        amount: quota.sipaComponent, pct: quota.sipaPct, color: 'bg-blue-500', tip: 'Aporte fijo por categoría, no proporcional a ingresos.' },
+                      { label: 'Obra social',         sub: 'Cobertura de salud',         amount: quota.obraSocialComponent, pct: quota.osPct, color: 'bg-emerald-500', tip: 'Podés elegir la obra social de tu preferencia.' },
+                    ].map(item => (
+                      <div key={item.label} title={item.tip}>
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <div>
+                            <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                            <span className="text-[10px] text-slate-400 ml-1.5">{item.sub}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-slate-800">{formatCurrency(item.amount)}</span>
+                            <span className="text-[10px] text-slate-400 ml-1">{item.pct}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={cn('h-full rounded-full', item.color)} style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-3 text-center">Vencimiento: día 20 de cada mes</p>
+                </Card>
+              </div>
+
+              {/* Barra de facturación anual */}
+              <Card padding="md">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">FACTURACIÓN ANUAL — últimos 12 meses</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Suma de facturas emitidas · Base para recategorización</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-slate-800">{formatCurrency(annualIncome)}</p>
+                    <p className="text-[10px] text-slate-400">de {formatCurrency(currentCat.max_annual_income)}</p>
+                  </div>
+                </div>
+                <div className="h-4 bg-slate-100 rounded-full overflow-hidden mb-1">
+                  <div
+                    className={cn('h-full rounded-full transition-all',
+                      (recatResult?.percentUsed ?? 0) >= 100 ? 'bg-red-500' :
+                      (recatResult?.percentUsed ?? 0) >= 80  ? 'bg-amber-500' : 'bg-emerald-500')}
+                    style={{ width: `${Math.min(recatResult?.percentUsed ?? 0, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-600 font-medium">
+                  {recatResult?.percentUsed ?? 0}% del límite Cat. {currentCat.category_code}
+                  {' · '}Margen: {formatCurrency(Math.max(0, currentCat.max_annual_income - annualIncome))}
+                </p>
+                {annualIncome === 0 && (
+                  <p className="text-xs text-slate-400 mt-2 italic">
+                    Sin facturas registradas aún. Emití comprobantes para que aparezcan aquí.
+                  </p>
+                )}
+              </Card>
+
+              {/* Alerta recategorización */}
+              {recatResult?.shouldRecategorize && (
+                <div className={cn('p-4 rounded-xl border-2',
+                  recatResult.direction === 'exclude' || recatResult.percentUsed >= 100
+                    ? 'bg-red-50 border-red-400' : 'bg-amber-50 border-amber-300')}>
+                  <div className="flex items-start gap-3">
+                    {recatResult.direction === 'exclude'
+                      ? <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                      : recatResult.direction === 'up'
+                      ? <ArrowUpRight className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      : <ArrowDownRight className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />}
+                    <div className="flex-1">
+                      <p className={cn('text-sm font-bold mb-1',
+                        recatResult.direction === 'exclude' || recatResult.percentUsed >= 100 ? 'text-red-800' : 'text-amber-800')}>
+                        {recatResult.direction === 'exclude'    ? '🚨 EXCLUSIÓN DEL MONOTRIBUTO'      :
+                         recatResult.direction === 'up'         ? '⬆ Recategorización recomendada'     :
+                                                                  '⬇ Podés bajar de categoría'}
+                      </p>
+                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{recatResult.reason}</p>
+                      {recatResult.suggestedCategory && recatResult.suggestedCategory !== profile.category_code && (
+                        <Button size="sm" className="mt-3"
+                          onClick={() => handleRecategorize(recatResult.suggestedCategory!)} loading={saving}>
+                          Recategorizar a {recatResult.suggestedCategory}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info pedagógica */}
+              <Card padding="md" className="bg-slate-50 border-slate-200">
+                <div className="flex gap-2 mb-2">
+                  <BookOpen className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs font-bold text-slate-700">Recategorización semestral</p>
+                </div>
+                <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside leading-relaxed">
+                  <li>Se realiza en <strong>enero y julio</strong> de cada año</li>
+                  <li>Se evalúan los ingresos de los últimos <strong>12 meses corridos</strong> (no el año calendario)</li>
+                  <li>También se consideran superficie, energía eléctrica y alquileres devengados</li>
+                  <li>Superar la Categoría K implica <strong>exclusión automática</strong> del régimen</li>
+                  <li>Bajo Monotributo <strong>no presentás DDJJ de IVA ni Ganancias</strong></li>
+                </ul>
+              </Card>
+
+              <button onClick={() => setProfile(null)} className="text-xs text-slate-400 hover:text-slate-600 underline">
+                Cambiar configuración del perfil
+              </button>
+            </div>
+          )}
+
+          {/* ══════════════ TAB: CUOTAS ══════════════ */}
+          {tab === 'cuotas' && (
+            <div className="space-y-4">
+              <Card padding="md">
+                <p className="text-sm font-bold text-slate-700 mb-4">Pago de cuota mensual</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Período</label>
+                    <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                      {periodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Medio de pago</label>
+                    <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                      disabled={selPayment?.status === 'paid'}>
+                      <option value="transferencia">Transferencia bancaria</option>
+                      <option value="debito_automatico">Débito automático</option>
+                      <option value="pago_electronico">Pago electrónico</option>
+                    </select>
+                  </div>
+                </div>
+
+                {selPayment?.status !== 'paid' && moraInfo && (
+                  <div className={cn('p-4 rounded-xl mb-4 border', moraInfo.daysLate > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200')}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">DETALLE DEL PAGO</p>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Cuota Cat. {currentCat.category_code} — {formatPeriod(selectedPeriod)}</span>
+                        <span className="font-semibold">{formatCurrency(quota.total)}</span>
+                      </div>
+                      {moraInfo.daysLate > 0 && (
+                        <div className="flex justify-between text-red-700">
+                          <span>Mora {moraInfo.daysLate} días × 3%/mes (art. 37 L.11683)</span>
+                          <span className="font-semibold">+ {formatCurrency(moraInfo.surcharge)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold border-t border-slate-200 pt-1.5">
+                        <span>TOTAL</span>
+                        <span className="text-base">{formatCurrency(moraInfo.totalWithMora)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selPayment?.status === 'paid' ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <p className="text-sm text-emerald-700 font-semibold">
+                      Pagado el {formatDate(selPayment.paid_at!)}
+                      {selPayment.surcharge > 0 && ` · Mora: ${formatCurrency(selPayment.surcharge)}`}
+                    </p>
+                  </div>
+                ) : (
+                  <Button onClick={handlePayQuota} loading={saving}>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pagar {moraInfo ? formatCurrency(moraInfo.totalWithMora) : '...'}
+                    {moraInfo && moraInfo.daysLate > 0 && ' (con mora)'}
+                  </Button>
+                )}
+              </Card>
+
+              {/* Historial */}
+              <Card padding="md">
+                <p className="text-sm font-bold text-slate-700 mb-3">Historial de cuotas</p>
+                {payments.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic text-center py-4">No hay cuotas registradas aún.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-2 font-semibold text-slate-500">Período</th>
+                          <th className="text-center py-2 font-semibold text-slate-500">Cat.</th>
+                          <th className="text-right py-2 font-semibold text-slate-500">Cuota</th>
+                          <th className="text-right py-2 font-semibold text-slate-500">Mora</th>
+                          <th className="text-right py-2 font-semibold text-slate-500">Total</th>
+                          <th className="text-center py-2 font-semibold text-slate-500">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map(p => (
+                          <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
+                            <td className="py-2 font-medium text-slate-700">{p.period_label}</td>
+                            <td className="py-2 text-center text-slate-500">{p.category_code}</td>
+                            <td className="py-2 text-right text-slate-700">{formatCurrency(p.total_amount)}</td>
+                            <td className="py-2 text-right text-red-600">{p.surcharge > 0 ? formatCurrency(p.surcharge) : '—'}</td>
+                            <td className="py-2 text-right font-semibold">{formatCurrency(p.total_amount + p.surcharge)}</td>
+                            <td className="py-2 text-center">
+                              <span className={cn('px-2 py-0.5 rounded-full font-bold text-[10px]',
+                                p.status === 'paid'    ? 'bg-emerald-100 text-emerald-700' :
+                                p.status === 'overdue' ? 'bg-red-100 text-red-700'         :
+                                                         'bg-amber-100 text-amber-700')}>
+                                {p.status === 'paid' ? 'Pagado' : p.status === 'overdue' ? 'Vencido' : 'Pendiente'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+
+          {/* ══════════════ TAB: TABLA ══════════════ */}
+          {tab === 'tabla' && (
+            <div className="space-y-4">
+              <Card padding="md">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-slate-700">Escala de categorías — Régimen ARCA 2026</p>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Valores orientativos</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4">
+                  Actualizadas trimestralmente según RIPTE. El parámetro más elevado (ingresos, superficie, energía o alquileres) determina la categoría.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs min-w-[600px]">
+                    <thead>
+                      <tr className="border-b-2 border-slate-200">
+                        <th className="text-left py-2 px-2 font-bold text-slate-600">Cat.</th>
+                        <th className="text-right py-2 px-2 font-bold text-slate-600">Ingresos anuales</th>
+                        <th className="text-right py-2 px-2 font-bold text-slate-600">Sup. (m²)</th>
+                        <th className="text-right py-2 px-2 font-bold text-slate-600">Energía (kWh)</th>
+                        <th className="text-right py-2 px-2 font-bold text-slate-600">Cuota servicios</th>
+                        <th className="text-right py-2 px-2 font-bold text-slate-600">Cuota bienes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.map(cat => {
+                        const isCurrent = cat.category_code === profile.category_code
+                        return (
+                          <tr key={cat.id} className={cn('border-b border-slate-100', isCurrent ? 'bg-primary-50' : 'hover:bg-slate-50')}>
+                            <td className="py-2 px-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn('font-black text-sm', isCurrent ? 'text-primary-700' : 'text-slate-700')}>{cat.category_code}</span>
+                                {isCurrent && <span className="text-[9px] font-bold bg-primary-600 text-white px-1.5 py-0.5 rounded">ACTUAL</span>}
+                              </div>
+                            </td>
+                            <td className="py-2 px-2 text-right text-slate-700">{formatCurrency(cat.max_annual_income)}</td>
+                            <td className="py-2 px-2 text-right text-slate-500">{cat.max_surface ?? '—'}</td>
+                            <td className="py-2 px-2 text-right text-slate-500">{cat.max_energy ? cat.max_energy.toLocaleString('es-AR') : '—'}</td>
+                            <td className="py-2 px-2 text-right font-medium text-slate-800">{formatCurrency(cat.monthly_total_services)}</td>
+                            <td className="py-2 px-2 text-right font-medium text-slate-800">{formatCurrency(cat.monthly_total_goods)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Desglose categoría actual */}
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">
+                    DESGLOSE CUOTA CAT. {currentCat.category_code} — {profile.activity_type}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { label: 'Impuesto integrado', val: quota.taxComponent, pct: quota.taxPct },
+                      { label: 'SIPA',               val: quota.sipaComponent, pct: quota.sipaPct },
+                      { label: 'Obra social',         val: quota.obraSocialComponent, pct: quota.osPct },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-xs text-slate-500">{item.label}</p>
+                        <p className="text-sm font-bold">{formatCurrency(item.val)}</p>
+                        <p className="text-[10px] text-slate-400">{item.pct}% de la cuota</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="md" className="bg-red-50 border-red-200">
+                <div className="flex gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-red-800 mb-1">Exclusión del Monotributo (art. 21 Ley 26565)</p>
+                    <p className="text-xs text-red-700 mb-1">
+                      Superar {formatCurrency(maxCatLimit)} anuales (tope Cat. K) implica exclusión automática. Consecuencias:
+                    </p>
+                    <ol className="text-xs text-red-700 list-decimal list-inside space-y-0.5">
+                      <li>Baja del Monotributo ante ARCA</li>
+                      <li>Alta como Responsable Inscripto en IVA y Ganancias</li>
+                      <li>Emisión de Facturas A o B (ya no C)</li>
+                      <li>DDJJ mensual de IVA (F.2002) y anual de Ganancias (F.713)</li>
+                    </ol>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ══════════════ TAB: SIMULADOR ══════════════ */}
+          {tab === 'simulador' && (
+            <div className="space-y-4">
+              <Card padding="md">
+                <p className="text-sm font-bold text-slate-700 mb-1">Simulador de categoría</p>
+                <p className="text-xs text-slate-500 mb-4">Calculá qué categoría y cuota correspondería a cualquier nivel de ingresos.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Ingresos brutos anuales ($)</label>
+                    <input type="number" min="0" value={simRevenue} onChange={e => setSimRevenue(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Ej: 25.000.000" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de actividad</label>
+                    <select value={simActivity} onChange={e => setSimActivity(e.target.value as 'servicios' | 'bienes')}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                      <option value="servicios">Prestación de servicios</option>
+                      <option value="bienes">Venta de bienes</option>
+                    </select>
+                  </div>
+                </div>
+
+                {simRevenue && (simCat && simQuota ? (
+                  <div className="space-y-3">
+                    <div className={cn('p-4 rounded-xl border-2', simCat.category_code === profile.category_code ? 'bg-primary-50 border-primary-300' : 'bg-slate-50 border-slate-300')}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-4xl font-black text-slate-700">{simCat.category_code}</span>
+                        <div className="flex-1">
+                          <p className="font-bold text-slate-800">{simCat.label}</p>
+                          <p className="text-xs text-slate-500">Límite: {formatCurrency(simCat.max_annual_income)}</p>
+                        </div>
+                        {simCat.category_code === profile.category_code && (
+                          <span className="text-[10px] font-bold bg-primary-600 text-white px-2 py-1 rounded">Categoría actual</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        {[
+                          { label: 'Impuesto', val: simQuota.taxComponent },
+                          { label: 'SIPA',     val: simQuota.sipaComponent },
+                          { label: 'Obra social', val: simQuota.obraSocialComponent },
+                          { label: 'TOTAL/MES',   val: simQuota.total, highlight: true },
+                        ].map(item => (
+                          <div key={item.label} className={cn('rounded-lg p-2 border', item.highlight ? 'bg-primary-50 border-primary-200' : 'bg-white border-slate-200')}>
+                            <p className={cn('text-[10px]', item.highlight ? 'text-primary-600 font-bold' : 'text-slate-500')}>{item.label}</p>
+                            <p className={cn('text-sm font-bold', item.highlight ? 'text-primary-800' : 'text-slate-800')}>{formatCurrency(item.val)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2 text-center">
+                        Carga anual: {formatCurrency(simQuota.total * 12)} · {((simQuota.total * 12) / parseFloat(simRevenue) * 100).toFixed(1)}% de los ingresos
+                      </p>
+                    </div>
+
+                    {simCat.category_code !== profile.category_code && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-xs">
+                        <span className="text-slate-600">Cuota actual ({currentCat.category_code}): {formatCurrency(quota.total)}</span>
+                        <ChevronRight className="w-3 h-3 text-slate-400" />
+                        <span className="font-bold text-blue-800">Simulada ({simCat.category_code}): {formatCurrency(simQuota.total)}</span>
+                        <span className={cn('font-bold ml-auto', simQuota.total > quota.total ? 'text-red-600' : 'text-emerald-600')}>
+                          {simQuota.total > quota.total ? '+' : ''}{formatCurrency(simQuota.total - quota.total)}/mes
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl">
+                    <p className="font-bold text-red-800 mb-1">🚨 EXCEDE EL LÍMITE DEL MONOTRIBUTO</p>
+                    <p className="text-xs text-red-700">
+                      Con {formatCurrency(parseFloat(simRevenue))} anuales superás el tope de Cat. K ({formatCurrency(maxCatLimit)}).
+                      Debés inscribirte como Responsable Inscripto.
+                    </p>
+                  </div>
+                ))}
+
+                {!simRevenue && (
+                  <div className="text-center py-6">
+                    <Calculator className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-400">Ingresá un monto anual para ver la categoría sugerida</p>
+                  </div>
+                )}
+              </Card>
+
+              {/* Mini gráfico de cuotas */}
+              <Card padding="md">
+                <p className="text-xs font-bold text-slate-600 mb-3">COMPARATIVO — Cuota mensual por categoría</p>
+                <div className="space-y-1.5">
+                  {categories.map(cat => {
+                    const q   = calculateMonotributoQuota(cat, simActivity)
+                    const max = calculateMonotributoQuota(categories[categories.length - 1], simActivity)
+                    const isSim     = simCat?.category_code === cat.category_code
+                    const isCurrent = cat.category_code === profile.category_code
+                    return (
+                      <div key={cat.id} className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg',
+                        isSim ? 'bg-primary-50 border border-primary-200' : isCurrent ? 'bg-slate-100' : '')}>
+                        <span className={cn('text-xs font-black w-5', isSim ? 'text-primary-700' : 'text-slate-600')}>{cat.category_code}</span>
+                        <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className={cn('h-full rounded-full', isSim ? 'bg-primary-500' : isCurrent ? 'bg-slate-500' : 'bg-slate-300')}
+                            style={{ width: `${(q.total / max.total) * 100}%` }}
+                          />
+                        </div>
+                        <span className={cn('text-xs font-semibold w-28 text-right', isSim ? 'text-primary-700' : 'text-slate-600')}>
+                          {formatCurrency(q.total)}
+                        </span>
+                        {(isSim || isCurrent) && (
+                          <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded', isSim ? 'bg-primary-600 text-white' : 'bg-slate-500 text-white')}>
+                            {isSim ? 'SIM' : 'HOY'}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            </div>
+          )}
+
+        </>)}
       </>)}
     </PageContainer>
   )
