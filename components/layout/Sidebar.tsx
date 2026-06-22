@@ -9,7 +9,7 @@ import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
   Lock, BookOpen, MapPin, ShoppingCart, ReceiptText, TrendingUp,
-  Layers, Users, DollarSign, BarChart3, GraduationCap, Ban,
+  Users, DollarSign, BarChart3, GraduationCap, Ban,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -61,9 +61,8 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
     {
       title: 'Impuestos nacionales',
       items: [
-        { href: '/iva',          label: 'DDJJ IVA',   icon: <ReceiptText className="w-4 h-4" />, locked: false },
-        { href: '/ganancias',    label: 'Ganancias',  icon: <TrendingUp className="w-4 h-4" />,  locked: false },
-        { href: '/monotributo',  label: 'Monotributo', icon: <Layers className="w-4 h-4" />,     locked: false },
+        { href: '/iva',       label: 'DDJJ IVA',  icon: <ReceiptText className="w-4 h-4" />, locked: false },
+        { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" />,  locked: false },
       ],
     },
     {
@@ -98,7 +97,6 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
     if (regime.loading) return false
     if (href === '/iva') return !regime.canUseIVA
     if (href === '/ganancias') return !regime.canUseGanancias
-    if (href === '/monotributo') return !regime.canUseMonotributo
     return false
   }
 

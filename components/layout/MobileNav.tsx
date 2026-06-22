@@ -7,7 +7,7 @@ import type { UserProgress } from '@/types'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag,
   Receipt, History, Lock, X, BookOpen, MapPin, ShoppingCart, ReceiptText,
-  TrendingUp, Layers, Users, DollarSign, BarChart3, GraduationCap
+  TrendingUp, Users, DollarSign, BarChart3, GraduationCap
 } from 'lucide-react'
 
 interface MobileNavProps {
@@ -43,7 +43,6 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
       items: [
         { href: '/iva', label: 'DDJJ IVA', icon: <ReceiptText className="w-4 h-4" /> },
         { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" /> },
-        { href: '/monotributo', label: 'Monotributo', icon: <Layers className="w-4 h-4" /> },
       ],
     },
     {

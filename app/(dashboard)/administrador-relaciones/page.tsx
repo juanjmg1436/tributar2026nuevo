@@ -269,21 +269,12 @@ export default function AdministradorRelacionesPage() {
                   {/* Para Monotributo activo: mostrar el módulo completo */}
                   {regime.code === 'MONOTRIBUTO' && isActive ? (
                     <div className="p-5">
-                      {/* Acciones de gestión del régimen */}
+                      {/* Solo baja — la constancia está en el módulo (tab Mi Situación) */}
                       <div className="flex gap-3 flex-wrap mb-5 pb-4 border-b border-slate-200">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openCertificate(regime, status!)}
-                        >
-                          <FileText className="w-4 h-4 mr-1.5" />
-                          Ver certificado PDF
-                        </Button>
                         <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
-                          <XCircle className="w-4 h-4 mr-1" /> Darme de baja
+                          <XCircle className="w-4 h-4 mr-1" /> Darme de baja del Monotributo
                         </Button>
                       </div>
-                      {/* Módulo completo de Monotributo embebido */}
                       <MonotributoModule />
                     </div>
                   ) : (
