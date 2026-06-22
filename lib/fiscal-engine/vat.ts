@@ -20,13 +20,14 @@ interface VatInput {
 export function calculateVat(input: VatInput): VatCalculation {
   const params = { ...DEFAULT_PARAMS, ...input.params }
 
-  // Débito fiscal: IVA de facturas A activas
+  // Débito fiscal: IVA de todas las facturas emitidas (A y B), no anuladas
+  // Factura B también genera débito para el vendedor RI, aunque el CF no pueda tomar crédito
   const salesIvaDebit = input.invoices
-    .filter(i => i.invoice_type === 'A' && i.status !== 'cancelled')
+    .filter(i => i.status !== 'cancelled')
     .reduce((s, i) => s + (i.iva_amount || 0), 0)
 
   const salesTaxable = input.invoices
-    .filter(i => i.invoice_type === 'A' && i.status !== 'cancelled')
+    .filter(i => i.status !== 'cancelled')
     .reduce((s, i) => s + (i.subtotal || 0), 0)
 
   // Crédito fiscal: IVA de compras computables activas

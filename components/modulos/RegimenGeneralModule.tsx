@@ -20,7 +20,7 @@ import {
   AlertTriangle, CheckCircle, CreditCard, RefreshCw, FileText,
   TrendingUp, TrendingDown, Minus, BookOpen, ExternalLink,
   Receipt, Calculator, Info, ChevronDown, ChevronUp,
-  Clock, Users, Heart, Percent,
+  Clock, Users, Heart, Percent, Link2, Building2, Download,
 } from 'lucide-react'
 
 type Tab = 'iva' | 'ganancias' | 'normativa'
@@ -72,6 +72,14 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
   const [ivaNotes, setIvaNotes]               = useState('')
   const [ivaPayMethod, setIvaPayMethod]       = useState('transferencia')
 
+  // ── PyMEZ 360 sync state ───────────────────────────────────────────────────
+  const [showPymezPanel, setShowPymezPanel]   = useState(false)
+  const [pymezCompanies, setPymezCompanies]   = useState<any[]>([])
+  const [pymezCompanyId, setPymezCompanyId]   = useState('')
+  const [pymezLoading, setPymezLoading]       = useState(false)
+  const [pymezError, setPymezError]           = useState<string | null>(null)
+  const [pymezSynced, setPymezSynced]         = useState<{ invoices: any[]; purchases: any[]; summary: any } | null>(null)
+
   // ── Ganancias state ────────────────────────────────────────────────────────
   const [ganLoading, setGanLoading]     = useState(true)
   const [ganSaving, setGanSaving]       = useState(false)
@@ -106,6 +114,34 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => { if (user) loadIva() }, [user, ivaPeriod])
   useEffect(() => { if (user) loadGanancias() }, [user, fiscalYear])
+
+  async function loadPymezCompanies() {
+    setPymezLoading(true); setPymezError(null)
+    try {
+      const res = await fetch('/api/pymez-sync?action=companies')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al conectar con PyMEZ 360')
+      setPymezCompanies(data.companies ?? [])
+      if (data.companies?.length === 1) setPymezCompanyId(data.companies[0].id)
+    } catch (e) { setPymezError(e instanceof Error ? e.message : 'Error') }
+    finally { setPymezLoading(false) }
+  }
+
+  async function syncFromPymez() {
+    if (!pymezCompanyId) return
+    setPymezLoading(true); setPymezError(null)
+    try {
+      const res = await fetch(`/api/pymez-sync?action=sync&company_id=${pymezCompanyId}&period=${ivaPeriod}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error de sincronización')
+      setPymezSynced(data)
+    } catch (e) { setPymezError(e instanceof Error ? e.message : 'Error') }
+    finally { setPymezLoading(false) }
+  }
+
+  function clearPymezSync() {
+    setPymezSynced(null); setPymezError(null)
+  }
 
   async function loadIva() {
     setIvaLoading(true); setIvaError(null)
@@ -178,9 +214,13 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
     setGanLoading(false)
   }
 
-  // ── IVA calculations ───────────────────────────────────────────────────────
+  // ── IVA calculations (merge local + PyMEZ 360) ────────────────────────────
+  const allInvoices  = pymezSynced ? [...invoices, ...pymezSynced.invoices]   : invoices
+  const allPurchases = pymezSynced ? [...purchases, ...pymezSynced.purchases] : purchases
   const ivaCalc = calculateVat({
-    period: ivaPeriod, invoices, purchases,
+    period: ivaPeriod,
+    invoices: allInvoices,
+    purchases: allPurchases,
     withholdings: parseFloat(ivaWithholdings) || 0,
     perceptions: parseFloat(ivaPerceptions) || 0,
     previousCredit: parseFloat(ivaPrevCredit) || 0,
@@ -407,11 +447,86 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">
             <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-blue-700 leading-relaxed">
-              <strong>IVA (RI):</strong> DDJJ mensual. <strong>Débito fiscal</strong> (facturas A al 21% / 10,5%) −{' '}
-              <strong>Crédito fiscal</strong> (compras computables) = <strong>IVA a ingresar</strong>.{' '}
+              <strong>IVA (RI):</strong> DDJJ mensual. <strong>Débito fiscal</strong> (todas las facturas con IVA) −{' '}
+              <strong>Crédito fiscal</strong> (compras con Factura A computable) = <strong>IVA a ingresar</strong>.{' '}
               El vencimiento varía según el <strong>penúltimo dígito</strong> del CUIT (días 12-20 del mes siguiente).
             </p>
           </div>
+
+          {/* Panel PyMEZ 360 */}
+          <Card padding="sm" className="border-indigo-200 bg-indigo-50">
+            <button className="w-full flex items-center justify-between"
+              onClick={() => {
+                setShowPymezPanel(v => !v)
+                if (!showPymezPanel && pymezCompanies.length === 0) loadPymezCompanies()
+              }}>
+              <span className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+                <Link2 className="w-4 h-4" />
+                Importar datos desde PyMEZ 360
+                {pymezSynced && (
+                  <span className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+                    {pymezSynced.summary.invoicesCount} ventas + {pymezSynced.summary.purchasesCount} compras sincronizadas
+                  </span>
+                )}
+              </span>
+              {showPymezPanel ? <ChevronUp className="w-4 h-4 text-indigo-500" /> : <ChevronDown className="w-4 h-4 text-indigo-500" />}
+            </button>
+
+            {showPymezPanel && (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs text-indigo-600">
+                  Trae las ventas y compras del período desde PyMEZ 360 y las suma a este cálculo.
+                  El crédito fiscal solo incluye compras con Factura A.
+                </p>
+
+                {pymezError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{pymezError}</div>}
+
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-indigo-600 mb-1">Empresa en PyMEZ 360</label>
+                    <select value={pymezCompanyId} onChange={e => setPymezCompanyId(e.target.value)}
+                      className="px-2 py-1.5 border border-indigo-200 rounded-lg text-xs bg-white min-w-[200px]">
+                      <option value="">— seleccionar empresa —</option>
+                      {pymezCompanies.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} · {c.cuit}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={loadPymezCompanies} loading={pymezLoading}
+                    className="border-indigo-300 text-indigo-700">
+                    <RefreshCw className="w-3 h-3 mr-1" /> Actualizar lista
+                  </Button>
+                  <Button size="sm" onClick={syncFromPymez} loading={pymezLoading}
+                    disabled={!pymezCompanyId}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Download className="w-3 h-3 mr-1" />
+                    Sincronizar {ivaPeriod}
+                  </Button>
+                  {pymezSynced && (
+                    <button onClick={clearPymezSync}
+                      className="text-xs text-slate-400 hover:text-red-500 underline">
+                      Quitar datos PyMEZ
+                    </button>
+                  )}
+                </div>
+
+                {pymezSynced && (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {[
+                      { label: 'Ventas importadas', val: pymezSynced.summary.invoicesCount, unit: 'comp.' },
+                      { label: 'Débito fiscal PyMEZ', val: formatCurrency(pymezSynced.summary.debitoFiscal), unit: '' },
+                      { label: 'Crédito fiscal PyMEZ', val: formatCurrency(pymezSynced.summary.creditoFiscal), unit: '' },
+                    ].map(item => (
+                      <div key={item.label} className="p-2 bg-white rounded-lg border border-indigo-100 text-center">
+                        <p className="text-[10px] text-indigo-500">{item.label}</p>
+                        <p className="text-sm font-bold text-indigo-800">{item.val} {item.unit}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
 
           {/* Alerta de mora */}
           {ivaIsOverdue && ivaCalc.netPayable > 0 && (
