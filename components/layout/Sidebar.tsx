@@ -7,9 +7,9 @@ import type { UserProgress } from '@/types'
 import { useRegime } from '@/hooks/useRegime'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
-  Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
-  Lock, BookOpen, MapPin, ShoppingCart,
-  Users, DollarSign, BarChart3, GraduationCap, Wallet,
+  Mail, ShoppingBag, Receipt, LogOut, ChevronRight,
+  Lock, BookOpen, MapPin,
+  Users, Wallet, Trophy,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -39,38 +39,22 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
   const regime = useRegime()
 
   const navItems: NavItem[] = [
-    { href: '/dashboard',                label: 'Panel principal',           icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
-    { href: '/contribuyentes',           label: 'Mis contribuyentes',        icon: <Users className="w-4 h-4" />,          locked: false },
-    { href: '/perfil-contribuyente',     label: 'Perfil del contribuyente',  icon: <User className="w-4 h-4" />,           locked: false },
-    { href: '/alta-rut',                 label: 'Alta registral',            icon: <FileText className="w-4 h-4" />,       locked: !progress?.hasTaxpayerProfile },
-    { href: '/administrador-relaciones', label: 'Administrador de relaciones', icon: <Settings className="w-4 h-4" />,    locked: !progress?.registrationComplete },
-    { href: '/estado-cuenta',            label: 'Estado de cuenta',          icon: <CreditCard className="w-4 h-4" />,     locked: !progress?.registrationComplete },
-    { href: '/billetera',               label: 'Billetera Fiscal',          icon: <Wallet    className="w-4 h-4" />,       locked: !progress?.registrationComplete },
-    { href: '/domicilio-fiscal',         label: 'Domicilio fiscal electrónico', icon: <Mail className="w-4 h-4" />,       locked: !(progress as any)?.hasActiveRegime },
-    { href: '/puntos-venta',             label: 'Puntos de venta',           icon: <ShoppingBag className="w-4 h-4" />,    locked: !progress?.registrationComplete },
-    { href: '/comprobantes',             label: 'Comprobantes',              icon: <Receipt className="w-4 h-4" />,        locked: !progress?.hasPOS },
-    { href: '/historial',                label: 'Historial de acciones',     icon: <History className="w-4 h-4" />,        locked: false },
+    { href: '/dashboard',    label: 'Panel principal',    icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
+    { href: '/contribuyentes', label: 'Mis contribuyentes', icon: <Users className="w-4 h-4" />,         locked: false },
   ]
 
   const fiscalSections: NavSection[] = [
     {
-      title: 'Facturación y compras',
+      title: 'Mi ARCA',
       items: [
-        { href: '/compras', label: 'Compras y gastos', icon: <ShoppingCart className="w-4 h-4" />, locked: false },
-      ],
-    },
-    {
-      title: 'Laboral',
-      items: [
-        { href: '/empleados',      label: 'Empleados',                  icon: <Users className="w-4 h-4" />,    locked: false },
-        { href: '/sueldos',        label: 'Liquidación de sueldos',     icon: <DollarSign className="w-4 h-4" />, locked: false },
-        { href: '/cargas-sociales', label: 'Cargas Sociales (F.931)', icon: <BarChart3 className="w-4 h-4" />, locked: false },
-      ],
-    },
-    {
-      title: 'Resumen',
-      items: [
-        { href: '/estado-fiscal', label: 'Estado fiscal integral', icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
+        { href: '/perfil-contribuyente',     label: 'Perfil del contribuyente',       icon: <User       className="w-4 h-4" />, locked: false },
+        { href: '/alta-rut',                 label: 'Alta registral',                 icon: <FileText   className="w-4 h-4" />, locked: !progress?.hasTaxpayerProfile },
+        { href: '/administrador-relaciones', label: 'Administrador de relaciones',    icon: <Settings   className="w-4 h-4" />, locked: !progress?.registrationComplete },
+        { href: '/domicilio-fiscal',         label: 'Domicilio fiscal electrónico',   icon: <Mail       className="w-4 h-4" />, locked: !(progress as any)?.hasActiveRegime },
+        { href: '/estado-cuenta',            label: 'Estado de cuenta',               icon: <CreditCard className="w-4 h-4" />, locked: !progress?.registrationComplete },
+        { href: '/billetera',                label: 'Billetera Fiscal',               icon: <Wallet     className="w-4 h-4" />, locked: !progress?.registrationComplete },
+        { href: '/comprobantes',             label: 'Comprobantes',                   icon: <Receipt    className="w-4 h-4" />, locked: !progress?.hasPOS },
+        { href: '/puntos-venta',             label: 'Puntos de venta',                icon: <ShoppingBag className="w-4 h-4" />, locked: !progress?.registrationComplete },
       ],
     },
     {
@@ -80,9 +64,9 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
       ],
     },
     {
-      title: 'Docente',
+      title: 'Aprendizaje',
       items: [
-        { href: '/configuracion-fiscal', label: 'Configuración fiscal', icon: <GraduationCap className="w-4 h-4" />, locked: false },
+        { href: '/desafios', label: 'Desafíos fiscales', icon: <Trophy className="w-4 h-4" />, locked: false },
       ],
     },
   ]
