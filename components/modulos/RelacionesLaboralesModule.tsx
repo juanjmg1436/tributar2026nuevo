@@ -80,6 +80,11 @@ export function RelacionesLaboralesModule() {
     setLoading(false)
   }
 
+  async function apiHeaders() {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+  }
+
   async function handleSync() {
     if (!tokenInput.trim()) {
       setError('Ingresá el código de sincronización de Sueldos 360.')
@@ -88,7 +93,8 @@ export function RelacionesLaboralesModule() {
     setSyncing(true)
     setError(null)
     try {
-      const res = await fetch(`/api/sueldos-sync?action=sync&token=${encodeURIComponent(tokenInput.trim())}`)
+      const headers = await apiHeaders()
+      const res = await fetch(`/api/sueldos-sync?action=sync&token=${encodeURIComponent(tokenInput.trim())}`, { headers })
       const json = await res.json()
       if (!res.ok) { setError(json.error || 'Error al sincronizar'); return }
       setSuccess(`¡Conectado! ${json.employee_count} empleados · ${json.payroll_runs?.length || 0} liquidaciones importadas.`)

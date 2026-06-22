@@ -1,26 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { createClient as createTributarClient } from '@/lib/supabase/server'
 
 // ── Sueldos 360 DB — servicio server-side ÚNICAMENTE ──────────────────────────
-// Credenciales SOLO para Sueldos 360 (qjyfdunhzwprusnlqxzr).
-// NUNCA exponer al cliente/browser.
 const S360_URL = 'https://qjyfdunhzwprusnlqxzr.supabase.co'
 const S360_SERVICE_KEY = process.env.SUELDOS360_SERVICE_KEY!
 
+// ── TRIBUT.AR — cliente anon para verificar usuario, service role para escribir ─
+const TRIBUTAR_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const TRIBUTAR_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const TRIBUTAR_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
 function s360() {
-  return createSupabaseClient(S360_URL, S360_SERVICE_KEY, {
-    auth: { persistSession: false },
-  })
+  return createSupabaseClient(S360_URL, S360_SERVICE_KEY, { auth: { persistSession: false } })
+}
+
+function tributarAnon() {
+  return createSupabaseClient(TRIBUTAR_URL, TRIBUTAR_ANON_KEY, { auth: { persistSession: false } })
+}
+
+function tributarAdmin() {
+  return createSupabaseClient(TRIBUTAR_URL, TRIBUTAR_SERVICE_KEY, { auth: { persistSession: false } })
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const action = searchParams.get('action')
 
-  // Verificar usuario autenticado en TRIBUT.AR
-  const tributar = await createTributarClient()
-  const { data: { user } } = await tributar.auth.getUser()
+  // Verificar usuario vía Bearer token (más fiable que cookies en Route Handlers)
+  const authHeader = request.headers.get('authorization') ?? ''
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!accessToken) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const { data: { user } } = await tributarAnon().auth.getUser(accessToken)
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   // ── action=sync: busca empresa por token e importa datos ──────────────────────
@@ -74,8 +85,8 @@ export async function GET(request: NextRequest) {
     const f931s      = f931Res.data || []
     const lastPayroll = payrolls[0]
 
-    // Guardar en TRIBUT.AR
-    await (tributar as any).from('sueldos360_imports').upsert({
+    // Guardar en TRIBUT.AR (service role bypassa RLS — se puede porque user_id ya verificado)
+    await (tributarAdmin() as any).from('sueldos360_imports').upsert({
       user_id:             user.id,
       s360_company_id:     companyId,
       company_name:        companyRow.razon_social,
