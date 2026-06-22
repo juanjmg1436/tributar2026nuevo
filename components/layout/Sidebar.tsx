@@ -9,7 +9,7 @@ import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
   Lock, BookOpen, MapPin, ShoppingCart,
-  Users, DollarSign, BarChart3, GraduationCap,
+  Users, DollarSign, BarChart3, GraduationCap, Wallet,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -45,6 +45,7 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
     { href: '/alta-rut',                 label: 'Alta registral',            icon: <FileText className="w-4 h-4" />,       locked: !progress?.hasTaxpayerProfile },
     { href: '/administrador-relaciones', label: 'Administrador de relaciones', icon: <Settings className="w-4 h-4" />,    locked: !progress?.registrationComplete },
     { href: '/estado-cuenta',            label: 'Estado de cuenta',          icon: <CreditCard className="w-4 h-4" />,     locked: !progress?.registrationComplete },
+    { href: '/billetera',               label: 'Billetera Fiscal',          icon: <Wallet    className="w-4 h-4" />,       locked: !progress?.registrationComplete },
     { href: '/domicilio-fiscal',         label: 'Domicilio fiscal electrónico', icon: <Mail className="w-4 h-4" />,       locked: !(progress as any)?.hasActiveRegime },
     { href: '/puntos-venta',             label: 'Puntos de venta',           icon: <ShoppingBag className="w-4 h-4" />,    locked: !progress?.registrationComplete },
     { href: '/comprobantes',             label: 'Comprobantes',              icon: <Receipt className="w-4 h-4" />,        locked: !progress?.hasPOS },

@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { useUser } from '@/hooks/useUser'
+import { useBilletera } from '@/hooks/useBilletera'
+import { BilleteraFiscal } from '@/components/BilleteraFiscal'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import {
   Users, Link2, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink,
@@ -75,6 +77,7 @@ const EMPTY_ALTA = {
 export function RelacionesLaboralesModule() {
   const { user } = useUser()
   const supabase = createClient()
+  const { balance, debitarPago } = useBilletera()
 
   const [tab, setTab]           = useState<Tab>('vincular')
   const [loading, setLoading]   = useState(true)
@@ -216,6 +219,12 @@ export function RelacionesLaboralesModule() {
     await (supabase as any).from('cargas_sociales_veps').update({
       status: 'pagado', paid_at: new Date().toISOString(), comprobante_number: comprobante,
     }).eq('id', vep.id)
+    await debitarPago(
+      vep.total_amount,
+      `F.931 — ${vep.periodo} (${syncData?.company_name ?? ''})`,
+      comprobante,
+      'homebanking',
+    )
     await loadVeps(syncData!.s360_company_id)
     setSuccess(`Pago registrado — Comprobante ${comprobante}`)
     setBusy(false)
@@ -506,6 +515,12 @@ export function RelacionesLaboralesModule() {
                             </p>
                           </div>
                         </div>
+                        <BilleteraFiscal compact />
+                        {balance < vep.total_amount && (
+                          <p className="text-[10px] text-amber-700">
+                            ⚠ Saldo insuficiente para este VEP. Cargá saldo arriba.
+                          </p>
+                        )}
                         <Button size="sm" onClick={() => handlePayVep(vep)} loading={busy}
                           className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
                           <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Pagar VEP — {formatCurrency(vep.total_amount)}

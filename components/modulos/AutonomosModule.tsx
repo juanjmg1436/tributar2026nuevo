@@ -14,6 +14,8 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { useUser } from '@/hooks/useUser'
+import { useBilletera } from '@/hooks/useBilletera'
+import { BilleteraFiscal } from '@/components/BilleteraFiscal'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import {
   AUTONOMOS_CATEGORIES,
@@ -61,6 +63,7 @@ function CatBadge({ code }: { code: string }) {
 export function AutonomosModule() {
   const { user } = useUser()
   const supabase  = createClient()
+  const { balance, debitarPago } = useBilletera()
   const [tab, setTab]           = useState<Tab>('situacion')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -173,6 +176,12 @@ export function AutonomosModule() {
         comprobante_number: comp,
         vep_number: vep,
       }).eq('id', payment.id)
+      await debitarPago(
+        payment.total_amount,
+        `Autónomos Cat. ${profile?.category ?? ''} — ${selectedPeriod}`,
+        vep,
+        'homebanking',
+      )
       setSuccess(`Pago registrado. Comp: ${comp}`)
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
@@ -531,6 +540,11 @@ export function AutonomosModule() {
                     isPaid ? 'border-emerald-400 bg-emerald-50' : isGenerated ? 'border-slate-200' : 'border-slate-100 bg-slate-50 opacity-50')}>
                     <StepHeader n={2} done={isPaid} label="Pagar" />
                     <p className="text-[10px] text-slate-500 mb-2">Simula el pago de los aportes.</p>
+                    {!isPaid && isGenerated && (
+                      <div className="mb-2">
+                        <BilleteraFiscal compact />
+                      </div>
+                    )}
                     <Button size="sm" onClick={handlePay} loading={saving}
                       disabled={!isGenerated || isPaid} className="w-full">
                       <CreditCard className="w-3 h-3 mr-1" />

@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useBilletera } from '@/hooks/useBilletera'
+import { BilleteraFiscal } from '@/components/BilleteraFiscal'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
@@ -37,6 +39,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 export function MonotributoModule() {
   const { user } = useUser()
   const supabase = createClient()
+  const { balance, debitarPago } = useBilletera()
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -172,6 +175,12 @@ export function MonotributoModule() {
         comprobante_number: generateComprobanteNumber(),
       })
 
+      await debitarPago(
+        mora.totalWithMora,
+        `Monotributo Cat. ${currentCat.category_code} — ${formatPeriod(selectedPeriod)}`,
+        `VEP-MONO-${selectedPeriod}`,
+        paymentMethod,
+      )
       setSuccess(mora.surcharge > 0
         ? `Cuota ${formatPeriod(selectedPeriod)}: ${formatCurrency(mora.totalWithMora)} (${mora.daysLate} días mora)`
         : `Cuota ${formatPeriod(selectedPeriod)}: ${formatCurrency(quota.total)} ✓`)
@@ -478,9 +487,10 @@ export function MonotributoModule() {
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
                     disabled={selPayment?.status === 'paid'}>
-                    <option value="transferencia">Transferencia bancaria</option>
+                    <option value="mercadopago">MercadoPago</option>
+                    <option value="billetera_arca">Billetera Fiscal ARCA</option>
+                    <option value="homebanking">Homebanking / VEP</option>
                     <option value="debito_automatico">Débito automático</option>
-                    <option value="pago_electronico">Pago electrónico</option>
                   </select>
                 </div>
               </div>
@@ -523,11 +533,19 @@ export function MonotributoModule() {
                   </Link>
                 </div>
               ) : (
-                <Button onClick={handlePayQuota} loading={saving}>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Pagar {moraInfo ? formatCurrency(moraInfo.totalWithMora) : '...'}
-                  {moraInfo && moraInfo.daysLate > 0 && ' (con mora)'}
-                </Button>
+                <div className="space-y-3">
+                  <BilleteraFiscal compact />
+                  {moraInfo && balance < moraInfo.totalWithMora && (
+                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                      ⚠ Saldo insuficiente. Cargá saldo arriba o pagá con otro método.
+                    </p>
+                  )}
+                  <Button onClick={handlePayQuota} loading={saving}>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pagar {moraInfo ? formatCurrency(moraInfo.totalWithMora) : '...'}
+                    {moraInfo && moraInfo.daysLate > 0 && ' (con mora)'}
+                  </Button>
+                </div>
               )}
             </Card>
 
