@@ -3,20 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 
 const PYMEZ_URL  = process.env.PYMEZ360_SUPABASE_URL
 const PYMEZ_KEY  = process.env.PYMEZ360_SUPABASE_SERVICE_KEY
-const TRIBU_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const TRIBU_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
 function pymez() {
   if (!PYMEZ_URL || !PYMEZ_KEY) return null
   return createClient(PYMEZ_URL, PYMEZ_KEY, { auth: { persistSession: false } })
-}
-function tributar() {
-  return createClient(TRIBU_URL, TRIBU_KEY, { auth: { persistSession: false } })
-}
-
-function randomToken() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin 0/O/I/1 para evitar confusión
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +21,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action') ?? 'companies'
 
-  // ── 1. Listar empresas (con tokens auto-generados) ─────────────────────────
+  // ── 1. Listar empresas (solo nombre/id — el token lo ve el dueño en PyMEZ) ──
   if (action === 'companies') {
     const { data: companies, error } = await db
       .from('companies')
@@ -41,33 +30,7 @@ export async function GET(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const trib = tributar()
-
-    // Para cada empresa, buscar o crear su token en TRIBUT.AR
-    const result = await Promise.all((companies ?? []).map(async c => {
-      const { data: existing } = await trib
-        .from('pymez_tokens')
-        .select('token')
-        .eq('company_id', c.id)
-        .single()
-
-      if (existing) return { ...c, token: existing.token }
-
-      // Primera vez: generar token único
-      let token = randomToken()
-      let attempts = 0
-      while (attempts < 10) {
-        const { error: insErr } = await trib.from('pymez_tokens').insert({
-          company_id: c.id, company_name: c.name, company_cuit: c.cuit, token,
-        })
-        if (!insErr) break
-        token = randomToken() // colisión improbable, reintentar
-        attempts++
-      }
-      return { ...c, token }
-    }))
-
-    return NextResponse.json({ companies: result })
+    return NextResponse.json({ companies: companies ?? [] })
   }
 
   // ── 2. Sincronizar período ─────────────────────────────────────────────────
@@ -83,18 +46,17 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Verificar token
-    const trib = tributar()
-    const { data: tokenRow } = await trib
-      .from('pymez_tokens')
-      .select('company_id')
-      .eq('company_id', companyId)
-      .eq('token', token)
+    // Verificar token contra companies.sync_token en PyMEZ 360
+    const { data: companyRow } = await db
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('sync_token', token)
       .single()
 
-    if (!tokenRow) {
+    if (!companyRow) {
       return NextResponse.json(
-        { error: 'Código incorrecto. Verificá el código de tu empresa.' },
+        { error: 'Código incorrecto. Verificá el código que aparece en PyMEZ 360 → Mi Empresa.' },
         { status: 403 },
       )
     }
