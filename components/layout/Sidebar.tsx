@@ -8,8 +8,8 @@ import { useRegime } from '@/hooks/useRegime'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, History, LogOut, ChevronRight,
-  Lock, BookOpen, MapPin, ShoppingCart, ReceiptText, TrendingUp,
-  Users, DollarSign, BarChart3, GraduationCap, Ban,
+  Lock, BookOpen, MapPin, ShoppingCart,
+  Users, DollarSign, BarChart3, GraduationCap,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -59,13 +59,6 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
       ],
     },
     {
-      title: 'Impuestos nacionales',
-      items: [
-        { href: '/iva',       label: 'DDJJ IVA',  icon: <ReceiptText className="w-4 h-4" />, locked: false },
-        { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" />,  locked: false },
-      ],
-    },
-    {
       title: 'Laboral',
       items: [
         { href: '/empleados',      label: 'Empleados',                  icon: <Users className="w-4 h-4" />,    locked: false },
@@ -93,16 +86,8 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
     },
   ]
 
-  function isRegimeRestricted(href: string): boolean {
-    if (regime.loading) return false
-    if (href === '/iva') return !regime.canUseIVA
-    if (href === '/ganancias') return !regime.canUseGanancias
-    return false
-  }
-
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/')
-    const restricted = isRegimeRestricted(item.href)
     const hasNotif = item.href === '/domicilio-fiscal' && !isActive && (unreadCount || 0) > 0
 
     if (item.locked) {
@@ -124,15 +109,11 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
           'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
           isActive
             ? 'bg-primary-700 text-white font-medium'
-            : restricted
-            ? 'text-slate-400 opacity-60 hover:bg-slate-50'
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
         )}
-        title={restricted ? 'No aplica a tu régimen fiscal' : undefined}
       >
         {item.icon}
         <span className="flex-1 truncate">{item.label}</span>
-        {restricted && !isActive && <Ban className="w-3 h-3 text-slate-300" />}
         {hasNotif && (
           <span className="w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
             {(unreadCount || 0) > 9 ? '9+' : unreadCount}

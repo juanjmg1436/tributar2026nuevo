@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils'
 import type { UserProgress } from '@/types'
 import {
   LayoutDashboard, User, FileText, Settings, CreditCard, Mail, ShoppingBag,
-  Receipt, History, Lock, X, BookOpen, MapPin, ShoppingCart, ReceiptText,
-  TrendingUp, Users, DollarSign, BarChart3, GraduationCap
+  Receipt, History, Lock, X, BookOpen, MapPin, ShoppingCart,
+  Users, DollarSign, BarChart3, GraduationCap
 } from 'lucide-react'
 
 interface MobileNavProps {
@@ -37,13 +37,6 @@ export function MobileNav({ isOpen, onClose, progress, userName, onSignOut }: Mo
     {
       title: 'Facturación y compras',
       items: [{ href: '/compras', label: 'Compras y gastos', icon: <ShoppingCart className="w-4 h-4" /> }],
-    },
-    {
-      title: 'Impuestos nacionales',
-      items: [
-        { href: '/iva', label: 'DDJJ IVA', icon: <ReceiptText className="w-4 h-4" /> },
-        { href: '/ganancias', label: 'Ganancias', icon: <TrendingUp className="w-4 h-4" /> },
-      ],
     },
     {
       title: 'Laboral',
