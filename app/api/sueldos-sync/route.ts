@@ -114,3 +114,82 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
 }
+
+// ── POST: alta / baja de empleados ────────────────────────────────────────────
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization') ?? ''
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!accessToken) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const { data: { user } } = await tributarAnon().auth.getUser(accessToken)
+  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const body = await request.json()
+  const { action, companyId } = body
+  const db = s360()
+  const tAdmin = tributarAdmin() as any
+
+  // ── alta-empleado ─────────────────────────────────────────────────────────
+  if (action === 'alta-empleado') {
+    const { apellido, nombre, cuil, puesto, sueldo_basico, fecha_ingreso, jornada, modalidad } = body
+
+    const { data: newEmp, error } = await db.from('employees').insert({
+      company_id:    companyId,
+      apellido:      String(apellido).trim(),
+      nombre:        String(nombre).trim(),
+      cuil:          String(cuil).trim(),
+      puesto:        puesto ? String(puesto).trim() : null,
+      sueldo_basico: Number(sueldo_basico),
+      fecha_ingreso: fecha_ingreso || new Date().toISOString().split('T')[0],
+      jornada:       jornada || 'completa',
+      modalidad:     modalidad || 'mensual',
+      status:        'activo',
+    }).select('id, apellido, nombre, cuil, puesto, sueldo_basico, jornada, modalidad, status, fecha_ingreso').single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    // Actualizar caché local en TRIBUT.AR
+    const { data: imp } = await tAdmin
+      .from('sueldos360_imports')
+      .select('employees_json, employee_count')
+      .eq('user_id', user.id).eq('s360_company_id', companyId).maybeSingle()
+    if (imp) {
+      const updated = [...(imp.employees_json || []), newEmp]
+      await tAdmin.from('sueldos360_imports').update({
+        employees_json: updated,
+        employee_count: updated.length,
+      }).eq('user_id', user.id).eq('s360_company_id', companyId)
+    }
+
+    return NextResponse.json({ ok: true, employee: newEmp })
+  }
+
+  // ── baja-empleado ─────────────────────────────────────────────────────────
+  if (action === 'baja-empleado') {
+    const { employeeId } = body
+
+    const { data: updEmp, error } = await db.from('employees')
+      .update({ status: 'baja' })
+      .eq('id', employeeId).eq('company_id', companyId)
+      .select('id').single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    // Eliminar de caché local en TRIBUT.AR
+    const { data: imp } = await tAdmin
+      .from('sueldos360_imports')
+      .select('employees_json')
+      .eq('user_id', user.id).eq('s360_company_id', companyId).maybeSingle()
+    if (imp) {
+      const updated = (imp.employees_json || []).filter((e: any) => e.id !== employeeId)
+      await tAdmin.from('sueldos360_imports').update({
+        employees_json: updated,
+        employee_count: updated.length,
+      }).eq('user_id', user.id).eq('s360_company_id', companyId)
+    }
+
+    return NextResponse.json({ ok: true, employee: updEmp })
+  }
+
+  return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+}
