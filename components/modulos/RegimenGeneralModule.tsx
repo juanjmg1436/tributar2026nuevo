@@ -73,7 +73,6 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
   const [ivaPayMethod, setIvaPayMethod]       = useState('transferencia')
 
   // ── PyMEZ 360 sync state ───────────────────────────────────────────────────
-  const [showPymezPanel, setShowPymezPanel]   = useState(false)
   const [pymezCompanies, setPymezCompanies]   = useState<any[]>([])
   const [pymezCompanyId, setPymezCompanyId]   = useState('')
   const [pymezToken, setPymezToken]           = useState('')
@@ -115,6 +114,7 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => { if (user) loadIva() }, [user, ivaPeriod])
   useEffect(() => { if (user) loadGanancias() }, [user, fiscalYear])
+  useEffect(() => { loadPymezCompanies() }, []) // carga empresas al montar
 
   async function loadPymezCompanies() {
     setPymezLoading(true); setPymezError(null)
@@ -458,103 +458,92 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
             </p>
           </div>
 
-          {/* Panel PyMEZ 360 */}
-          <Card padding="sm" className="border-indigo-200 bg-indigo-50">
-            <button className="w-full flex items-center justify-between"
-              onClick={() => {
-                setShowPymezPanel(v => !v)
-                if (!showPymezPanel && pymezCompanies.length === 0) loadPymezCompanies()
-              }}>
-              <span className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
-                <Link2 className="w-4 h-4" />
-                Importar datos desde PyMEZ 360
-                {pymezSynced && (
-                  <span className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
-                    {pymezSynced.summary.invoicesCount} ventas + {pymezSynced.summary.purchasesCount} compras sincronizadas
-                  </span>
-                )}
-              </span>
-              {showPymezPanel ? <ChevronUp className="w-4 h-4 text-indigo-500" /> : <ChevronDown className="w-4 h-4 text-indigo-500" />}
-            </button>
+          {/* Panel PyMEZ 360 — siempre visible */}
+          <Card padding="md" className="border-indigo-200 bg-indigo-50">
+            <div className="flex items-center gap-2 mb-3">
+              <Link2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+              <p className="text-sm font-bold text-indigo-700">Importar desde PyMEZ 360</p>
+              {pymezSynced && (
+                <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold ml-auto">
+                  ✓ {pymezSynced.summary.invoicesCount} ventas · {pymezSynced.summary.purchasesCount} compras
+                </span>
+              )}
+            </div>
 
-            {showPymezPanel && (
-              <div className="mt-3 space-y-3">
-                <p className="text-xs text-indigo-600">
-                  Trae las ventas y compras del período desde PyMEZ 360 y las suma a este cálculo.
-                  El crédito fiscal solo incluye compras con Factura A.
-                </p>
+            <p className="text-xs text-indigo-600 mb-3">
+              Seleccioná tu empresa, ingresá el código que te dio el docente y sincronizá el período.
+            </p>
 
-                {pymezError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{pymezError}</div>}
+            {pymezError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-3">
+                {pymezError}
+              </div>
+            )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-indigo-600 mb-1">
-                      Empresa en PyMEZ 360
-                    </label>
-                    <select value={pymezCompanyId} onChange={e => setPymezCompanyId(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-indigo-200 rounded-lg text-xs bg-white">
-                      <option value="">— seleccionar empresa —</option>
-                      {pymezCompanies.map(c => (
-                        <option key={c.id} value={c.id}>{c.name} · {c.cuit}</option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              {/* Empresa */}
+              <div>
+                <label className="block text-xs font-semibold text-indigo-700 mb-1">
+                  Tu empresa en PyMEZ 360
+                </label>
+                <select
+                  value={pymezCompanyId}
+                  onChange={e => setPymezCompanyId(e.target.value)}
+                  className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  <option value="">
+                    {pymezLoading ? 'Cargando empresas…' : '— seleccionar —'}
+                  </option>
+                  {pymezCompanies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
 
-                  <div>
-                    <label className="block text-[10px] font-semibold text-indigo-600 mb-1">
-                      Código de acceso <span className="text-slate-400 font-normal">(6 caracteres, mayúsculas)</span>
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={pymezToken}
-                      onChange={e => setPymezToken(e.target.value.toUpperCase())}
-                      placeholder="Ej: A3X7K2"
-                      className="w-full px-3 py-1.5 border border-indigo-200 rounded-lg text-sm font-mono tracking-widest bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 uppercase"
-                    />
-                  </div>
+              {/* Código */}
+              <div>
+                <label className="block text-xs font-semibold text-indigo-700 mb-1">
+                  Código de acceso
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={pymezToken}
+                  onChange={e => setPymezToken(e.target.value.toUpperCase())}
+                  placeholder="Ej: A3X7K2"
+                  className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm font-mono tracking-[0.3em] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:tracking-normal"
+                />
+                <p className="text-[10px] text-indigo-400 mt-1">6 caracteres — te lo da el docente</p>
+              </div>
 
-                  <div className="flex gap-2 items-end">
-                    <Button size="sm" variant="outline" onClick={loadPymezCompanies} loading={pymezLoading}
-                      className="border-indigo-300 text-indigo-700 flex-shrink-0">
-                      <RefreshCw className="w-3 h-3" />
-                    </Button>
-                    <Button size="sm" onClick={syncFromPymez} loading={pymezLoading}
-                      disabled={!pymezCompanyId || pymezToken.length < 6}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
-                      <Download className="w-3 h-3 mr-1" />
-                      Sincronizar
-                    </Button>
-                  </div>
+              {/* Botón */}
+              <div>
+                <label className="block text-xs font-semibold text-indigo-700 mb-1 opacity-0 select-none">
+                  Acción
+                </label>
+                <Button
+                  size="sm"
+                  onClick={syncFromPymez}
+                  loading={pymezLoading}
+                  disabled={!pymezCompanyId || pymezToken.length < 6}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  Sincronizar {ivaPeriod}
+                </Button>
+              </div>
+            </div>
+
+            {pymezSynced && (
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex gap-4 text-xs text-indigo-700">
+                  <span>Débito importado: <strong>{new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS'}).format(pymezSynced.summary.debitoFiscal)}</strong></span>
+                  <span>Crédito importado: <strong>{new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS'}).format(pymezSynced.summary.creditoFiscal)}</strong></span>
                 </div>
-
-                {!pymezSynced && pymezCompanyId && (
-                  <p className="text-[10px] text-indigo-500">
-                    El código de 6 caracteres te lo da tu docente. Es único para tu empresa.
-                  </p>
-                )}
-
-                {pymezSynced && (
-                  <button onClick={clearPymezSync}
-                    className="text-xs text-slate-400 hover:text-red-500 underline self-start">
-                    Quitar datos importados
-                  </button>
-                )}
-
-                {pymezSynced && (
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {[
-                      { label: 'Ventas importadas', val: pymezSynced.summary.invoicesCount, unit: 'comp.' },
-                      { label: 'Débito fiscal PyMEZ', val: formatCurrency(pymezSynced.summary.debitoFiscal), unit: '' },
-                      { label: 'Crédito fiscal PyMEZ', val: formatCurrency(pymezSynced.summary.creditoFiscal), unit: '' },
-                    ].map(item => (
-                      <div key={item.label} className="p-2 bg-white rounded-lg border border-indigo-100 text-center">
-                        <p className="text-[10px] text-indigo-500">{item.label}</p>
-                        <p className="text-sm font-bold text-indigo-800">{item.val} {item.unit}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <button onClick={clearPymezSync}
+                  className="text-xs text-slate-400 hover:text-red-500 underline">
+                  Quitar datos importados
+                </button>
               </div>
             )}
           </Card>
