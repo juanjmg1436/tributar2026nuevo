@@ -24,9 +24,10 @@ import {
 import { formatPeriod, currentPeriod, generateVepNumber, generateComprobanteNumber } from '@/lib/fiscal-engine'
 import type { MonotributoDemoCategory, MonotributoProfile, MonotributoPayment } from '@/types/fiscal'
 import {
-  AlertTriangle, Info, CheckCircle, CreditCard, Zap,
+  AlertTriangle, CheckCircle, CreditCard,
   Clock, ChevronRight, ArrowUpRight, ArrowDownRight,
   BarChart3, Calculator, FileText, BookOpen, AlertCircle,
+  Download, Award,
 } from 'lucide-react'
 
 type Tab = 'situacion' | 'cuotas' | 'tabla' | 'simulador'
@@ -485,9 +486,18 @@ export default function MonotributoPage() {
                 </ul>
               </Card>
 
-              <button onClick={() => setProfile(null)} className="text-xs text-slate-400 hover:text-slate-600 underline">
-                Cambiar configuración del perfil
-              </button>
+              {/* Acciones PDF */}
+              <div className="flex gap-3 flex-wrap">
+                <a
+                  href="/monotributo/constancia"
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors"
+                >
+                  <Award className="w-3.5 h-3.5" /> Descargar constancia de inscripción
+                </a>
+                <button onClick={() => setProfile(null)} className="text-xs text-slate-400 hover:text-slate-600 underline self-center">
+                  Cambiar configuración del perfil
+                </button>
+              </div>
             </div>
           )}
 
@@ -541,10 +551,18 @@ export default function MonotributoPage() {
                 {selPayment?.status === 'paid' ? (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    <p className="text-sm text-emerald-700 font-semibold">
-                      Pagado el {formatDate(selPayment.paid_at!)}
-                      {selPayment.surcharge > 0 && ` · Mora: ${formatCurrency(selPayment.surcharge)}`}
-                    </p>
+                    <div className="flex-1">
+                      <p className="text-sm text-emerald-700 font-semibold">
+                        Pagado el {formatDate(selPayment.paid_at!)}
+                        {selPayment.surcharge > 0 && ` · Mora: ${formatCurrency(selPayment.surcharge)}`}
+                      </p>
+                    </div>
+                    <a
+                      href={`/monotributo/comprobante/${selectedPeriod}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors whitespace-nowrap"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Comprobante PDF
+                    </a>
                   </div>
                 ) : (
                   <Button onClick={handlePayQuota} loading={saving}>
@@ -571,6 +589,7 @@ export default function MonotributoPage() {
                           <th className="text-right py-2 font-semibold text-slate-500">Mora</th>
                           <th className="text-right py-2 font-semibold text-slate-500">Total</th>
                           <th className="text-center py-2 font-semibold text-slate-500">Estado</th>
+                          <th className="text-center py-2 font-semibold text-slate-500">PDF</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -588,6 +607,15 @@ export default function MonotributoPage() {
                                                          'bg-amber-100 text-amber-700')}>
                                 {p.status === 'paid' ? 'Pagado' : p.status === 'overdue' ? 'Vencido' : 'Pendiente'}
                               </span>
+                            </td>
+                            <td className="py-2 text-center">
+                              <a
+                                href={`/monotributo/comprobante/${p.period}`}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-primary-50 text-primary-700 hover:bg-primary-100 rounded-lg transition-colors"
+                                title="Descargar comprobante PDF"
+                              >
+                                <Download className="w-3 h-3" /> PDF
+                              </a>
                             </td>
                           </tr>
                         ))}
