@@ -17,6 +17,7 @@ import {
   Users, Home, Briefcase, TrendingUp, Building2, Lock, FileText
 } from 'lucide-react'
 import type { TaxRegime, TaxpayerRegimeStatus, TaxpayerProfile } from '@/types'
+import { MonotributoModule } from '@/components/modulos/MonotributoModule'
 
 export default function AdministradorRelacionesPage() {
   const { user, taxpayerProfile, loading: userLoading } = useUser()
@@ -264,32 +265,12 @@ export default function AdministradorRelacionesPage() {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-slate-100 p-5 bg-slate-50/50">
-                  <p className="text-sm text-slate-600 mb-4">{regime.full_description}</p>
-                  {!check.allowed && (
-                    <Alert variant="warning" className="mb-4">
-                      <Lock className="w-4 h-4 inline mr-1" />
-                      {check.reason}
-                    </Alert>
-                  )}
-                  {check.allowed && !isActive && (
-                    <Alert variant="info" className="mb-4">
-                      Al activar este régimen, se generarán obligaciones simuladas en tu estado de cuenta. Podés darte de baja cuando quieras.
-                    </Alert>
-                  )}
-                  {isActive && (
-                    <Alert variant="warning" className="mb-4">
-                      Estás actualmente activo en este régimen. Si te dás de baja, las obligaciones pendientes seguirán existiendo hasta ser regularizadas.
-                    </Alert>
-                  )}
-                  <div className="flex gap-3 flex-wrap">
-                    {!isActive && check.allowed && (
-                      <Button onClick={() => activateRegime(regime)} loading={isLoading} size="sm">
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Darme de alta
-                      </Button>
-                    )}
-                    {isActive && (
-                      <>
+                <div className="border-t border-slate-100">
+                  {/* Para Monotributo activo: mostrar el módulo completo */}
+                  {regime.code === 'MONOTRIBUTO' && isActive ? (
+                    <div className="p-5">
+                      {/* Acciones de gestión del régimen */}
+                      <div className="flex gap-3 flex-wrap mb-5 pb-4 border-b border-slate-200">
                         <Button
                           variant="outline"
                           size="sm"
@@ -301,9 +282,48 @@ export default function AdministradorRelacionesPage() {
                         <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
                           <XCircle className="w-4 h-4 mr-1" /> Darme de baja
                         </Button>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                      {/* Módulo completo de Monotributo embebido */}
+                      <MonotributoModule />
+                    </div>
+                  ) : (
+                    <div className="p-5 bg-slate-50/50">
+                      <p className="text-sm text-slate-600 mb-4">{regime.full_description}</p>
+                      {!check.allowed && (
+                        <Alert variant="warning" className="mb-4">
+                          <Lock className="w-4 h-4 inline mr-1" />
+                          {check.reason}
+                        </Alert>
+                      )}
+                      {check.allowed && !isActive && (
+                        <Alert variant="info" className="mb-4">
+                          Al activar este régimen, se generarán obligaciones simuladas en tu estado de cuenta. Podés darte de baja cuando quieras.
+                        </Alert>
+                      )}
+                      {isActive && (
+                        <Alert variant="warning" className="mb-4">
+                          Estás actualmente activo en este régimen. Si te dás de baja, las obligaciones pendientes seguirán existiendo hasta ser regularizadas.
+                        </Alert>
+                      )}
+                      <div className="flex gap-3 flex-wrap">
+                        {!isActive && check.allowed && (
+                          <Button onClick={() => activateRegime(regime)} loading={isLoading} size="sm">
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> Darme de alta
+                          </Button>
+                        )}
+                        {isActive && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => openCertificate(regime, status!)}>
+                              <FileText className="w-4 h-4 mr-1.5" /> Ver certificado PDF
+                            </Button>
+                            <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
+                              <XCircle className="w-4 h-4 mr-1" /> Darme de baja
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
