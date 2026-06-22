@@ -184,7 +184,10 @@ export async function GET(req: NextRequest) {
 
     if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
 
-    // Base IIBB = precio neto sin IVA (sales.total en PyMEZ es el neto)
+    // Base IIBB: para RI = precio neto sin IVA; para Monotributista/Autónomo = precio total facturado.
+    // En PyMEZ, sales.total es el precio base (IVA separado como sales.total * iva_rate),
+    // por lo que el campo es correcto para ambos casos: si iva_rate=0 (monotributista),
+    // sales.total ya es el precio de venta completo.
     const totalSalesNet = (sales ?? []).reduce((sum, s) => sum + (s.total ?? 0), 0)
 
     return NextResponse.json({

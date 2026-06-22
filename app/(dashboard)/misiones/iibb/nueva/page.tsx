@@ -253,11 +253,17 @@ export default function NuevaDDJJPage() {
             </div>
             <div className="flex gap-2 items-start text-xs text-violet-700 bg-violet-100 border border-violet-200 rounded-lg p-3 mb-3">
               <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <p>
-                La <strong>base imponible de IIBB</strong> para un Responsable Inscripto es el precio neto (sin IVA)
-                de las ventas del período — los mismos datos que usás para calcular el IVA en el módulo de Régimen General.
-                Ingresá el mismo código que usás en <strong>IVA / Régimen General → PyMEZ 360</strong>.
-              </p>
+              <div className="space-y-1">
+                <p>IIBB grava los ingresos de <strong>cualquier régimen fiscal</strong>. La base imponible varía:</p>
+                <ul className="space-y-0.5 pl-1">
+                  <li>· <strong>Responsable Inscripto:</strong> precio neto sin IVA (el IVA no es ingreso propio, se recauda para ARCA).</li>
+                  <li>· <strong>Monotributista / Autónomo:</strong> precio total facturado (no separás IVA; lo cobrado es el ingreso bruto).</li>
+                </ul>
+                <p className="text-violet-600">
+                  PyMEZ 360 registra el precio base correctamente en ambos casos.
+                  Usá el mismo código de sincronización que en <strong>Régimen General</strong> o <strong>IVA</strong>.
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <input

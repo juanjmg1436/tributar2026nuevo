@@ -268,7 +268,7 @@ export default function DesafiosPage() {
     {
       id: 'prov-ddjj-pymez',
       titulo: 'DDJJ IIBB con datos de PyMEZ 360',
-      descripcion: 'Importá los ingresos de facturación directamente desde PyMEZ 360 para pre-completar la base imponible de IIBB.',
+      descripcion: 'Importá los ingresos de facturación desde PyMEZ 360 para pre-completar la base imponible. Válido para RI, Monotributistas y Autónomos.',
       href: '/misiones/iibb/nueva',
       icon: <Link2 className="w-5 h-5" />,
       puntos: 250,
