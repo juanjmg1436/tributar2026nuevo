@@ -23,66 +23,32 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await tributar.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  // ── action=companies: lista empresas del usuario en Sueldos 360 ─────────────
-  if (action === 'companies') {
-    const db = s360()
-    // Buscar usuario en Sueldos 360 por email
-    const { data: s360Users } = await db
-      .from('profiles')
-      .select('id, email')
-      .eq('email', user.email!)
-      .limit(1)
-
-    if (!s360Users || s360Users.length === 0) {
-      return NextResponse.json({ companies: [] })
-    }
-
-    const s360UserId = s360Users[0].id
-
-    const { data: companies } = await db
-      .from('companies')
-      .select('id, razon_social, cuit, sync_token, actividad_principal, provincia, is_active')
-      .eq('user_id', s360UserId)
-      .eq('is_active', true)
-      .order('created_at')
-
-    return NextResponse.json({
-      companies: (companies || []).map(c => ({
-        id: c.id,
-        razon_social: c.razon_social,
-        cuit: c.cuit,
-        actividad_principal: c.actividad_principal,
-        provincia: c.provincia,
-        has_token: !!c.sync_token,
-      })),
-    })
-  }
-
-  // ── action=sync: importa datos de la empresa verificando el token ───────────
+  // ── action=sync: busca empresa por token e importa datos ──────────────────────
+  // El token de 8 chars identifica unívocamente la empresa — no se requiere companyId.
   if (action === 'sync') {
-    const companyId = searchParams.get('companyId')
-    const token     = searchParams.get('token')
+    const token = searchParams.get('token')
 
-    if (!companyId || !token) {
-      return NextResponse.json({ error: 'Faltan parámetros: companyId y token' }, { status: 400 })
+    if (!token || token.trim().length < 4) {
+      return NextResponse.json({ error: 'Ingresá el código de sincronización.' }, { status: 400 })
     }
 
     const db = s360()
 
-    // Verificar token
-    const { data: companyRow } = await db
+    // Buscar empresa por token (sin filtro de usuario — el token es la credencial)
+    const { data: companyRow, error: companyErr } = await db
       .from('companies')
       .select('id, razon_social, cuit, actividad_principal, provincia')
-      .eq('id', companyId)
-      .eq('sync_token', token.toUpperCase())
-      .single()
+      .eq('sync_token', token.trim().toUpperCase())
+      .maybeSingle()
 
-    if (!companyRow) {
+    if (companyErr || !companyRow) {
       return NextResponse.json(
         { error: 'Código incorrecto. Verificá el código que aparece en Sueldos 360 → Empresas.' },
         { status: 403 },
       )
     }
+
+    const companyId = companyRow.id
 
     // Importar datos en paralelo
     const [empRes, payrollRes, f931Res] = await Promise.all([

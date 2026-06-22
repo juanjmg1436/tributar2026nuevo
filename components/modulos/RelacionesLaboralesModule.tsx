@@ -8,7 +8,6 @@
 
 import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -17,12 +16,11 @@ import { useUser } from '@/hooks/useUser'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import {
   Users, Link2, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink,
-  Building2, TrendingUp, FileText, CreditCard, Info, Clock, XCircle,
+  TrendingUp, FileText, Info, XCircle,
 } from 'lucide-react'
 
 type Tab = 'vincular' | 'empleados' | 'liquidaciones' | 'f931'
 
-interface S360Company { id: string; razon_social: string; cuit: string; actividad_principal?: string }
 interface S360Employee { id: string; apellido: string; nombre: string; cuil: string; puesto?: string; sueldo_basico: number; status: string }
 interface S360Payroll { id: string; periodo: string; tipo: string; status: string; total_bruto: number; total_neto: number; total_contribuciones_patronales: number; total_aportes_trabajador: number; total_costo_laboral: number; fecha_pago?: string }
 interface S360F931 { id: string; periodo: string; cantidad_empleados: number; total_remuneraciones: number; total_aportes_jubilatorios: number; total_contribuciones_patronales: number; total_general: number; status: string; presentado_at?: string; pagado_at?: string }
@@ -59,10 +57,7 @@ export function RelacionesLaboralesModule() {
   const [error, setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Datos del panel de vinculación
-  const [s360Companies, setS360Companies]   = useState<S360Company[]>([])
-  const [selectedCompany, setSelectedCompany] = useState<string>('')
-  const [tokenInput, setTokenInput]           = useState('')
+  const [tokenInput, setTokenInput] = useState('')
 
   // Datos sincronizados
   const [syncData, setSyncData] = useState<SyncData | null>(null)
@@ -82,29 +77,21 @@ export function RelacionesLaboralesModule() {
       setSyncData(data)
       setTab('empleados')
     }
-
-    // Cargar lista de empresas de Sueldos 360 (sin token)
-    try {
-      const res = await fetch('/api/sueldos-sync?action=companies')
-      const json = await res.json()
-      setS360Companies(json.companies || [])
-      if (json.companies?.length === 1) setSelectedCompany(json.companies[0].id)
-    } catch {}
     setLoading(false)
   }
 
   async function handleSync() {
-    if (!selectedCompany || !tokenInput.trim()) {
-      setError('Seleccioná una empresa e ingresá el código de sincronización.')
+    if (!tokenInput.trim()) {
+      setError('Ingresá el código de sincronización de Sueldos 360.')
       return
     }
     setSyncing(true)
     setError(null)
     try {
-      const res = await fetch(`/api/sueldos-sync?action=sync&companyId=${selectedCompany}&token=${tokenInput.trim()}`)
+      const res = await fetch(`/api/sueldos-sync?action=sync&token=${encodeURIComponent(tokenInput.trim())}`)
       const json = await res.json()
       if (!res.ok) { setError(json.error || 'Error al sincronizar'); return }
-      setSuccess(`Sincronizado: ${json.employee_count} empleados · ${json.payroll_runs?.length || 0} liquidaciones importadas.`)
+      setSuccess(`¡Conectado! ${json.employee_count} empleados · ${json.payroll_runs?.length || 0} liquidaciones importadas.`)
       await init()
     } catch (e) {
       setError('Error de red al conectar con Sueldos 360.')
@@ -176,9 +163,8 @@ export function RelacionesLaboralesModule() {
               <p className="font-bold mb-1">Cómo vincular con Sueldos 360</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Andá a <a href="https://sueldos360.vercel.app/dashboard/empresas" target="_blank" className="underline font-semibold">Sueldos 360 → Empresas</a></li>
-                <li>Copiá el <strong>Código de sincronización</strong> que aparece debajo de tu empresa</li>
-                <li>Seleccioná tu empresa y pegá el código abajo</li>
-                <li>Hacé click en <strong>Sincronizar</strong></li>
+                <li>Copiá el <strong>Código de sincronización</strong> de la tarjeta violeta</li>
+                <li>Pegalo en el campo de abajo y hacé click en <strong>Sincronizar</strong></li>
               </ol>
             </div>
           </div>
@@ -210,31 +196,15 @@ export function RelacionesLaboralesModule() {
                     <p className="text-sm font-black text-slate-700">{syncData.last_period ?? '—'}</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => { setTokenInput(''); init() }} className="w-full text-xs">
+                <Button size="sm" variant="outline" onClick={init} className="w-full text-xs">
                   <RefreshCw className="w-3 h-3 mr-1" /> Actualizar datos
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Empresa (Sueldos 360)</label>
-                  {s360Companies.length === 0 ? (
-                    <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
-                      No se encontraron empresas en Sueldos 360 con tu email. Asegurate de usar el mismo correo en ambas apps.
-                    </p>
-                  ) : (
-                    <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-                      <option value="">Seleccionar empresa…</option>
-                      {s360Companies.map(c => (
-                        <option key={c.id} value={c.id}>{c.razon_social} — {c.cuit}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Código de sincronización (desde Sueldos 360 → Empresas)
+                    Código de sincronización
                   </label>
                   <input
                     type="text"
@@ -244,6 +214,9 @@ export function RelacionesLaboralesModule() {
                     maxLength={8}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Encontralo en Sueldos 360 → Empresas → tarjeta violeta &quot;Código de sincronización&quot;
+                  </p>
                 </div>
                 <Button onClick={handleSync} loading={syncing} className="w-full bg-violet-700 hover:bg-violet-800 text-white">
                   <Link2 className="w-4 h-4 mr-2" /> Sincronizar con Sueldos 360
