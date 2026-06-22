@@ -19,6 +19,7 @@ import {
 import type { TaxRegime, TaxpayerRegimeStatus, TaxpayerProfile } from '@/types'
 import { MonotributoModule } from '@/components/modulos/MonotributoModule'
 import { RegimenGeneralModule } from '@/components/modulos/RegimenGeneralModule'
+import { AutonomosModule } from '@/components/modulos/AutonomosModule'
 
 export default function AdministradorRelacionesPage() {
   const { user, taxpayerProfile, loading: userLoading } = useUser()
@@ -107,6 +108,21 @@ export default function AdministradorRelacionesPage() {
         return r?.code === 'MONOTRIBUTO' && s.status === 'active'
       })
       if (mono) return { allowed: false, reason: 'No podés estar en Régimen General y Monotributo al mismo tiempo. Primero darte de baja del Monotributo.' }
+    }
+    if (regime.code === 'AUTONOMOS') {
+      if (taxpayer.subject_type === 'persona_juridica') return { allowed: false, reason: 'El régimen de Autónomos solo aplica a personas humanas.' }
+      const mono = regimeStatuses.find(s => {
+        const r = regimes.find(rg => rg.id === s.regime_id)
+        return r?.code === 'MONOTRIBUTO' && s.status === 'active'
+      })
+      if (mono) return { allowed: false, reason: 'No podés ser Autónomo y Monotributista al mismo tiempo. El Monotributo reemplaza los aportes autónomos.' }
+    }
+    if (regime.code === 'MONOTRIBUTO') {
+      const aut = regimeStatuses.find(s => {
+        const r = regimes.find(rg => rg.id === s.regime_id)
+        return r?.code === 'AUTONOMOS' && s.status === 'active'
+      })
+      if (aut) return { allowed: false, reason: 'No podés ser Monotributista y Autónomo al mismo tiempo. Primero darte de baja del régimen de Autónomos.' }
     }
     if (regime.code === 'CASAS_PARTICULARES') {
       if (taxpayer.subject_type === 'persona_juridica') return { allowed: false, reason: 'El régimen de Casas Particulares solo aplica a personas humanas.' }
@@ -276,6 +292,18 @@ export default function AdministradorRelacionesPage() {
                         </Button>
                       </div>
                       <MonotributoModule />
+                    </div>
+                  ) : regime.code === 'AUTONOMOS' && isActive ? (
+                    <div className="p-5">
+                      <div className="flex gap-3 flex-wrap mb-5 pb-4 border-b border-slate-200">
+                        <Button variant="outline" size="sm" onClick={() => openCertificate(regime, status!)}>
+                          <FileText className="w-4 h-4 mr-1.5" /> Ver certificado PDF
+                        </Button>
+                        <Button variant="danger" onClick={() => deactivateRegime(regime)} loading={isLoading} size="sm">
+                          <XCircle className="w-4 h-4 mr-1" /> Darme de baja de Autónomos
+                        </Button>
+                      </div>
+                      <AutonomosModule />
                     </div>
                   ) : regime.code === 'REGIMEN_GENERAL' && isActive ? (
                     <div className="p-5">

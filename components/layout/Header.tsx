@@ -29,6 +29,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/iva': 'DDJJ IVA',
   '/ganancias': 'Impuesto a las Ganancias',
   '/monotributo': 'Monotributo',
+  '/autonomos': 'Autónomos',
+  '/autonomos/constancia': 'Constancia de Inscripción — Autónomos',
   '/empleados': 'Empleadores y trabajadores',
   '/sueldos': 'Liquidación de sueldos',
   '/cargas-sociales': 'Cargas Sociales (F.931)',

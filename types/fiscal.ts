@@ -361,6 +361,40 @@ export interface IncomeTaxCalculation {
   quebranto?: number
 }
 
+// ── Autónomos ─────────────────────────────────────────────────────────────────
+export interface AutonomosProfile {
+  id: string
+  user_id: string
+  category: 'I' | 'II' | 'III' | 'IV' | 'V'
+  activity_type: 'servicios' | 'bienes' | 'profesional'
+  activity_desc: string | null
+  start_date: string
+  is_iva_inscripto: boolean
+  status: 'active' | 'inactive' | 'suspended'
+  created_at: string
+  updated_at: string
+}
+
+export interface AutonomosPayment {
+  id: string
+  user_id: string
+  period: string
+  period_label: string
+  due_date: string
+  category: string
+  base_imponible: number
+  aporte_jubilacion: number
+  aporte_pami: number
+  aporte_obra_social: number
+  surcharge: number
+  total_amount: number
+  status: 'pending' | 'paid' | 'overdue'
+  paid_at: string | null
+  vep_number: string | null
+  comprobante_number: string | null
+  created_at: string
+}
+
 // ── Estado fiscal integral ─────────────────────────────────────────────────────
 export interface FiscalStatus {
   userId: string
