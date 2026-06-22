@@ -1,71 +1,122 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const PYMEZ_URL = process.env.PYMEZ360_SUPABASE_URL
-const PYMEZ_KEY = process.env.PYMEZ360_SUPABASE_SERVICE_KEY
+const PYMEZ_URL  = process.env.PYMEZ360_SUPABASE_URL
+const PYMEZ_KEY  = process.env.PYMEZ360_SUPABASE_SERVICE_KEY
+const TRIBU_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const TRIBU_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-function getPymezClient() {
+function pymez() {
   if (!PYMEZ_URL || !PYMEZ_KEY) return null
   return createClient(PYMEZ_URL, PYMEZ_KEY, { auth: { persistSession: false } })
 }
+function tributar() {
+  return createClient(TRIBU_URL, TRIBU_KEY, { auth: { persistSession: false } })
+}
 
-// GET /api/pymez-sync?action=companies
-// GET /api/pymez-sync?action=sync&company_id=xxx&period=2026-06
+function randomToken() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin 0/O/I/1 para evitar confusión
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/pymez-sync?action=companies          → lista empresas + sus tokens
+// GET /api/pymez-sync?action=sync&company_id=x&period=YYYY-MM&token=ABC123
+// ─────────────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const pymez = getPymezClient()
-  if (!pymez) {
-    return NextResponse.json(
-      { error: 'PyMEZ 360 no configurado en variables de entorno.' },
-      { status: 503 },
-    )
+  const db = pymez()
+  if (!db) {
+    return NextResponse.json({ error: 'PyMEZ 360 no configurado.' }, { status: 503 })
   }
 
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action') ?? 'companies'
 
-  // ── Listar empresas disponibles ──────────────────────────────────────────
+  // ── 1. Listar empresas (con tokens auto-generados) ─────────────────────────
   if (action === 'companies') {
-    const { data, error } = await pymez
+    const { data: companies, error } = await db
       .from('companies')
       .select('id, name, cuit, fiscal_condition')
       .order('name')
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ companies: data ?? [] })
+
+    const trib = tributar()
+
+    // Para cada empresa, buscar o crear su token en TRIBUT.AR
+    const result = await Promise.all((companies ?? []).map(async c => {
+      const { data: existing } = await trib
+        .from('pymez_tokens')
+        .select('token')
+        .eq('company_id', c.id)
+        .single()
+
+      if (existing) return { ...c, token: existing.token }
+
+      // Primera vez: generar token único
+      let token = randomToken()
+      let attempts = 0
+      while (attempts < 10) {
+        const { error: insErr } = await trib.from('pymez_tokens').insert({
+          company_id: c.id, company_name: c.name, company_cuit: c.cuit, token,
+        })
+        if (!insErr) break
+        token = randomToken() // colisión improbable, reintentar
+        attempts++
+      }
+      return { ...c, token }
+    }))
+
+    return NextResponse.json({ companies: result })
   }
 
-  // ── Sincronizar período ──────────────────────────────────────────────────
+  // ── 2. Sincronizar período ─────────────────────────────────────────────────
   if (action === 'sync') {
-    const period    = searchParams.get('period')     // YYYY-MM
+    const period    = searchParams.get('period')
     const companyId = searchParams.get('company_id')
+    const token     = searchParams.get('token')?.trim().toUpperCase()
 
-    if (!period || !companyId) {
+    if (!period || !companyId || !token) {
       return NextResponse.json(
-        { error: 'Se requieren period (YYYY-MM) y company_id' },
+        { error: 'Se requieren period, company_id y token.' },
         { status: 400 },
       )
     }
 
+    // Verificar token
+    const trib = tributar()
+    const { data: tokenRow } = await trib
+      .from('pymez_tokens')
+      .select('company_id')
+      .eq('company_id', companyId)
+      .eq('token', token)
+      .single()
+
+    if (!tokenRow) {
+      return NextResponse.json(
+        { error: 'Código incorrecto. Verificá el código de tu empresa.' },
+        { status: 403 },
+      )
+    }
+
+    // Token válido → traer datos
     const [year, month] = period.split('-').map(Number)
     const dateFrom = `${period}-01`
     const dateTo   = new Date(year, month, 0).toISOString().split('T')[0]
 
     const [salesRes, purchasesRes, customersRes, suppliersRes] = await Promise.all([
-      pymez.from('sales')
+      db.from('sales')
         .select('id, date, total, iva_rate, document_type, doc_number, status, customer_id')
         .eq('company_id', companyId)
-        .gte('date', dateFrom)
-        .lte('date', dateTo)
+        .gte('date', dateFrom).lte('date', dateTo)
         .neq('status', 'anulado'),
-
-      pymez.from('purchases')
+      db.from('purchases')
         .select('id, date, total, iva_rate, document_type, doc_number, status, supplier_id, supplier_doc')
         .eq('company_id', companyId)
-        .gte('date', dateFrom)
-        .lte('date', dateTo)
+        .gte('date', dateFrom).lte('date', dateTo)
         .neq('status', 'anulado'),
-
-      pymez.from('customers').select('id, name').eq('company_id', companyId),
-      pymez.from('suppliers').select('id, name').eq('company_id', companyId),
+      db.from('customers').select('id, name').eq('company_id', companyId),
+      db.from('suppliers').select('id, name').eq('company_id', companyId),
     ])
 
     if (salesRes.error)     return NextResponse.json({ error: salesRes.error.message },     { status: 500 })
@@ -73,21 +124,17 @@ export async function GET(req: NextRequest) {
 
     const custMap: Record<string, string> = {}
     for (const c of customersRes.data ?? []) custMap[c.id] = c.name
-
     const suppMap: Record<string, string> = {}
     for (const s of suppliersRes.data ?? []) suppMap[s.id] = s.name
 
-    // Mapeo → formato TRIBUT.AR
-    // En PyMEZ 360: sales.total = neto SIN IVA; iva_amount = total × iva_rate
     const invoices = (salesRes.data ?? []).map(s => {
       const net    = s.total ?? 0
       const rate   = s.iva_rate ?? 0
       const ivaAmt = Math.round(net * rate * 100) / 100
-      const type   = docTypeToInvoiceType(s.document_type)
       return {
         id:            `pymez_${s.id}`,
         period,
-        invoice_type:  type,
+        invoice_type:  docTypeToInvoiceType(s.document_type),
         invoice_date:  s.date,
         doc_number:    s.doc_number ? String(s.doc_number) : null,
         customer_name: custMap[s.customer_id] ?? 'Cliente',
@@ -105,23 +152,21 @@ export async function GET(req: NextRequest) {
       const rate   = p.iva_rate ?? 0
       const ivaAmt = Math.round(net * rate * 100) / 100
       const type   = docTypeToInvoiceType(p.document_type)
-      // Solo facturas A de proveedores son IVA crédito computable
-      const computable = type === 'A' && rate > 0
       return {
-        id:             `pymez_${p.id}`,
+        id:                `pymez_${p.id}`,
         period,
-        invoice_type:   type,
-        purchase_date:  p.date,
-        doc_number:     p.doc_number ? String(p.doc_number) : null,
-        supplier_name:  suppMap[p.supplier_id] ?? 'Proveedor',
-        supplier_cuit:  p.supplier_doc ?? null,
-        subtotal:       Math.round(net * 100) / 100,
-        iva_rate:       rate,
-        iva_amount:     ivaAmt,
-        total:          Math.round((net + ivaAmt) * 100) / 100,
-        is_iva_computable: computable,
-        status:         'active',
-        source:         'pymez360' as const,
+        invoice_type:      type,
+        purchase_date:     p.date,
+        doc_number:        p.doc_number ? String(p.doc_number) : null,
+        supplier_name:     suppMap[p.supplier_id] ?? 'Proveedor',
+        supplier_cuit:     p.supplier_doc ?? null,
+        subtotal:          Math.round(net * 100) / 100,
+        iva_rate:          rate,
+        iva_amount:        ivaAmt,
+        total:             Math.round((net + ivaAmt) * 100) / 100,
+        is_iva_computable: type === 'A' && rate > 0,
+        status:            'active',
+        source:            'pymez360' as const,
       }
     })
 
