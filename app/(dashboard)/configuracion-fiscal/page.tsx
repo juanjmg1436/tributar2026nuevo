@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { DEFAULT_PARAMS } from '@/lib/fiscal-engine/defaults'
 import type { FiscalParameter } from '@/types/fiscal'
-import { AlertTriangle, Settings, RefreshCw, RotateCcw, Save } from 'lucide-react'
+import { AlertTriangle, Settings, RefreshCw, RotateCcw, Save, Link2, Copy, Check } from 'lucide-react'
 
 const CATEGORY_LABELS: Record<string, string> = {
   iva: 'IVA',
@@ -230,6 +230,9 @@ export default function ConfiguracionFiscalPage() {
         <MonotributoCategoriesTable supabase={supabase} />
       </Card>
 
+      {/* Códigos PyMEZ 360 */}
+      <PymezCodesPanel />
+
       {/* Escenarios pedagógicos predefinidos */}
       <Card padding="md" className="mb-5">
         <p className="text-sm font-semibold text-slate-700 mb-3">Escenarios pedagógicos rápidos</p>
@@ -279,6 +282,95 @@ export default function ConfiguracionFiscalPage() {
         </div>
       </Card>
     </PageContainer>
+  )
+}
+
+function PymezCodesPanel() {
+  const [companies, setCompanies] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true); setError(null)
+    try {
+      const res = await fetch('/api/pymez-sync?action=companies')
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Error al cargar')
+      setCompanies(json.companies ?? [])
+    } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
+    finally { setLoading(false) }
+  }
+
+  async function copy(token: string) {
+    await navigator.clipboard.writeText(token)
+    setCopied(token)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <Card padding="md" className="mb-5 border-indigo-200">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-indigo-600" />
+          <p className="text-sm font-semibold text-slate-700">Códigos de acceso PyMEZ 360</p>
+        </div>
+        <button onClick={load} className="p-1.5 text-slate-400 hover:text-slate-600" title="Recargar">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-500 mb-3">
+        Cada empresa tiene un código único de 6 caracteres. Distribuí el código al estudiante correspondiente para que pueda sincronizar sus datos desde PyMEZ 360.
+      </p>
+
+      {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+
+      {loading && companies.length === 0 ? (
+        <p className="text-xs text-slate-400 text-center py-4">Cargando empresas…</p>
+      ) : companies.length === 0 ? (
+        <p className="text-xs text-slate-400 text-center py-4">No hay empresas en PyMEZ 360.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500 text-left">
+                <th className="py-2 px-2 font-semibold">Empresa</th>
+                <th className="py-2 px-2 font-semibold">CUIT</th>
+                <th className="py-2 px-2 font-semibold text-center">Código estudiante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companies.map(c => (
+                <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-2 px-2 font-medium text-slate-800">{c.name}</td>
+                  <td className="py-2 px-2 text-slate-500">{c.cuit ?? '—'}</td>
+                  <td className="py-2 px-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-mono font-bold tracking-[0.25em] text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg text-sm">
+                        {c.token}
+                      </span>
+                      <button
+                        onClick={() => copy(c.token)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                        title="Copiar código"
+                      >
+                        {copied === c.token
+                          ? <Check className="w-3.5 h-3.5 text-green-500" />
+                          : <Copy className="w-3.5 h-3.5" />
+                        }
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   )
 }
 
