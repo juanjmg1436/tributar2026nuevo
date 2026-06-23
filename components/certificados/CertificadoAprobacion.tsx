@@ -91,7 +91,7 @@ export const CertificadoAprobacion = forwardRef<HTMLDivElement, Props>(
         {/* ── Título central ── */}
         <div style={{ textAlign: 'center', padding: '26px 36px 0' }}>
           <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 8px', fontWeight: 600, letterSpacing: '2px' }}>
-            DIPLOMATURA SUPERIOR EN CIENCIAS ECONÓMICAS
+            SIMULADOR FISCAL EDUCATIVO · CIENCIAS ECONÓMICAS
           </p>
           <p style={{ fontSize: '28px', fontWeight: 900, color: '#0F172A', margin: '0 0 6px', letterSpacing: '-0.5px' }}>
             CERTIFICADO DE FINALIZACIÓN
@@ -174,8 +174,8 @@ export const CertificadoAprobacion = forwardRef<HTMLDivElement, Props>(
           <div style={{ flex: 1, marginRight: '24px' }}>
             <p style={{ fontSize: '11px', color: '#475569', lineHeight: 1.7, margin: 0 }}>
               El presente certificado acredita la finalización del recorrido pedagógico completo de{' '}
-              <strong>TRIBUT.AR</strong>, plataforma de simulación fiscal educativa desarrollada en el marco
-              de la Diplomatura Superior en Ciencias Económicas. Generado automáticamente
+              <strong>TRIBUT.AR</strong>, plataforma de simulación fiscal educativa desarrollada con fines
+              pedagógicos. Generado automáticamente
               el <strong>{fmtDate(new Date().toISOString())}</strong>.
             </p>
           </div>
