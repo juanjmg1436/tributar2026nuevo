@@ -17,6 +17,7 @@ import { useUser } from '@/hooks/useUser'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Trash2, ArrowLeft, CheckCircle2, Info } from 'lucide-react'
 import type { PointOfSale, TaxpayerProfile } from '@/types'
+import { useRegime } from '@/hooks/useRegime'
 
 const itemSchema = z.object({
   description: z.string().min(1, 'Descripción requerida'),
@@ -37,6 +38,7 @@ type FormData = z.infer<typeof schema>
 
 export default function NuevoComprobantePage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const router = useRouter()
   const [posList, setPosList] = useState<PointOfSale[]>([])
   const [taxpayer, setTaxpayer] = useState<TaxpayerProfile | null>(null)
@@ -46,10 +48,15 @@ export default function NuevoComprobantePage() {
   const [activeRegimeCode, setActiveRegimeCode] = useState<string | null>(null)
   const supabase = createClient()
 
+  // Default al primer tipo permitido por régimen (C para mono, A para RI)
+  const defaultInvoiceType = regime.regime === 'monotributista' ? 'C'
+    : (regime.regime === 'responsable_inscripto' || regime.regime === 'empresa') ? 'A'
+    : 'C'
+
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      invoice_type: 'C',
+      invoice_type: defaultInvoiceType as FormData['invoice_type'],
       concept: 'Servicios',
       items: [{ description: '', quantity: 1, unit_price: 0 }],
     },
@@ -146,13 +153,16 @@ export default function NuevoComprobantePage() {
     }
   }
 
-  const invoiceTypeOptions = [
-    { value: 'A', label: 'Factura A — Para responsables inscriptos (IVA incluido)' },
-    { value: 'B', label: 'Factura B — Para consumidores finales' },
-    { value: 'C', label: 'Factura C — Para monotributistas' },
-    { value: 'X', label: 'Comprobante X — Genérico del simulador' },
-    { value: 'DEMO', label: 'Comprobante DEMO — Educativo de práctica' },
+  const ALL_INVOICE_TYPES = [
+    { value: 'A',    label: 'Factura A — Para responsables inscriptos (discrimina IVA 21%)', ri: true,   mono: false },
+    { value: 'B',    label: 'Factura B — Para consumidores finales (RI emite a no-inscriptos)', ri: true,   mono: false },
+    { value: 'C',    label: 'Factura C — Para monotributistas (no discrimina IVA)',            ri: false,  mono: true  },
+    { value: 'X',    label: 'Comprobante X — Genérico del simulador',                          ri: true,   mono: true  },
+    { value: 'DEMO', label: 'Comprobante DEMO — Educativo de práctica',                        ri: true,   mono: true  },
   ]
+
+  const allowed = regime.allowedInvoiceTypes
+  const invoiceTypeOptions = ALL_INVOICE_TYPES.filter(t => allowed.includes(t.value))
 
   const posOptions = posList.map(p => ({ value: p.id, label: `N°${p.pos_number} — ${p.name}` }))
 

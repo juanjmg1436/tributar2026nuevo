@@ -48,13 +48,18 @@ export interface RegimeInfo {
   canUseIVA: boolean          // DDJJ IVA mensual
   canUseGanancias: boolean    // DDJJ Ganancias anual
   canUseMonotributo: boolean  // Cuota monotributo
+  canUseAutonomos: boolean    // Módulo de aportes autónomos
   canUseComprasCredito: boolean // Crédito fiscal de compras (solo RI)
   canUseLaboral: boolean      // Empleados / sueldos / F.931
+
+  // Tipos de comprobante habilitados para emisión
+  allowedInvoiceTypes: string[]  // ej. ['A','B'] para RI, ['C'] para Mono
 
   // Mensajes explicativos para módulos bloqueados
   ivaBlockReason: string | null
   gananciasBlockReason: string | null
   monotributoBlockReason: string | null
+  autonomosBlockReason: string | null
 }
 
 const LOADING_STATE: RegimeInfo = {
@@ -65,11 +70,14 @@ const LOADING_STATE: RegimeInfo = {
   canUseIVA: true,
   canUseGanancias: true,
   canUseMonotributo: true,
+  canUseAutonomos: true,
   canUseComprasCredito: true,
   canUseLaboral: true,
+  allowedInvoiceTypes: ['A', 'B', 'C', 'X', 'DEMO'],
   ivaBlockReason: null,
   gananciasBlockReason: null,
   monotributoBlockReason: null,
+  autonomosBlockReason: null,
 }
 
 export function useRegime(): RegimeInfo {
@@ -139,8 +147,10 @@ export function useRegime(): RegimeInfo {
       canUseIVA: false,
       canUseGanancias: false,
       canUseMonotributo: true,
-      canUseComprasCredito: false,   // Las compras se registran, pero sin crédito IVA
+      canUseAutonomos: false,
+      canUseComprasCredito: false,
       canUseLaboral: true,
+      allowedInvoiceTypes: ['C', 'X', 'DEMO'],
       ivaBlockReason:
         'Como Monotributista, el IVA está incluido en tu cuota mensual. ' +
         'No presentás DDJJ de IVA por separado. Solo los Responsables Inscriptos ' +
@@ -150,6 +160,11 @@ export function useRegime(): RegimeInfo {
         'No presentás DDJJ de Ganancias. Solo los Responsables Inscriptos y empresas ' +
         'presentan DDJJ anual de Ganancias.',
       monotributoBlockReason: null,
+      autonomosBlockReason:
+        'El Monotributo reemplaza los aportes de Autónomos al SIPA. Como Monotributista, ' +
+        'tu aporte jubilatorio está incluido en la cuota mensual — no podés estar inscripto ' +
+        'simultáneamente como Autónomo (Ley 26565, art. 26). Para usar este módulo debés ' +
+        'darte de baja del Monotributo y pasar al Régimen General.',
     }
   }
 
@@ -163,14 +178,20 @@ export function useRegime(): RegimeInfo {
       canUseIVA: true,
       canUseGanancias: true,
       canUseMonotributo: false,
+      canUseAutonomos: false,
       canUseComprasCredito: true,
       canUseLaboral: true,
+      allowedInvoiceTypes: ['A', 'B', 'X', 'DEMO'],
       ivaBlockReason: null,
       gananciasBlockReason: null,
       monotributoBlockReason:
         'Las personas jurídicas (empresas, SRL, SA) no pueden adherirse al Monotributo. ' +
         'Este régimen simplificado es exclusivo para personas humanas con ingresos ' +
         'que no superen los límites de la categoría K.',
+      autonomosBlockReason:
+        'Las personas jurídicas (SRL, SA, etc.) no se inscriben como trabajadores autónomos. ' +
+        'El régimen de Autónomos aplica exclusivamente a personas humanas que trabajan por cuenta propia. ' +
+        'Las empresas aportan a la seguridad social de sus empleados como empleadoras.',
     }
   }
 
@@ -184,14 +205,17 @@ export function useRegime(): RegimeInfo {
       canUseIVA: true,
       canUseGanancias: true,
       canUseMonotributo: false,
+      canUseAutonomos: true,
       canUseComprasCredito: true,
       canUseLaboral: true,
+      allowedInvoiceTypes: ['A', 'B', 'X', 'DEMO'],
       ivaBlockReason: null,
       gananciasBlockReason: null,
       monotributoBlockReason:
         'Estás inscripto como Responsable Inscripto en IVA. ' +
         'Los Responsables Inscriptos no pueden adherirse al Monotributo simultáneamente. ' +
         'Para pasarte al Monotributo debés darte de baja en IVA y cumplir los límites de ingresos.',
+      autonomosBlockReason: null,
     }
   }
 
@@ -204,10 +228,13 @@ export function useRegime(): RegimeInfo {
     canUseIVA: true,
     canUseGanancias: true,
     canUseMonotributo: true,
+    canUseAutonomos: true,
     canUseComprasCredito: true,
     canUseLaboral: true,
+    allowedInvoiceTypes: ['A', 'B', 'C', 'X', 'DEMO'],
     ivaBlockReason: null,
     gananciasBlockReason: null,
     monotributoBlockReason: null,
+    autonomosBlockReason: null,
   }
 }

@@ -11,9 +11,11 @@ import { useUser } from '@/hooks/useUser'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { Employer, Employee } from '@/types/fiscal'
 import { AlertTriangle, Info, Users, Plus, Trash2, Building2, UserPlus, RefreshCw } from 'lucide-react'
+import { useRegime } from '@/hooks/useRegime'
 
 export default function EmpleadosPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -126,6 +128,34 @@ export default function EmpleadosPage() {
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
       </div>
+
+      {/* Advertencia Monotributista: límites de empleados por categoría */}
+      {regime.regime === 'monotributista' && (
+        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl flex gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-amber-800 mb-1">Límite de empleados según categoría de Monotributo</p>
+            <p className="text-xs text-amber-700 leading-relaxed mb-2">
+              Como Monotributista, la cantidad de empleados es un <strong>parámetro de categorización</strong>:
+              si tenés más empleados de los permitidos en tu categoría, debés recategorizarte.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {[
+                { cats: 'A, B', empleados: '0', color: 'bg-red-100 text-red-700 border-red-200' },
+                { cats: 'C, D, E', empleados: '1', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+                { cats: 'F, G, H', empleados: '2', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+                { cats: 'I, J, K', empleados: '3', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+              ].map(r => (
+                <div key={r.cats} className={`border rounded-lg px-2 py-1.5 text-center ${r.color}`}>
+                  <p className="font-bold">Cat. {r.cats}</p>
+                  <p>Máx. {r.empleados} empleado{r.empleados !== '1' ? 's' : ''}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-amber-600 mt-2">Fuente: Ley 26565 art. 20 — tabla de categorías. Superarlo implica recategorización o exclusión del régimen.</p>
+          </div>
+        </div>
+      )}
 
       {/* Info pedagógica */}
       <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">
