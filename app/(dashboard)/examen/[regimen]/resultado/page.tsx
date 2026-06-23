@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useUser } from '@/hooks/useUser'
+import { createClient } from '@/lib/supabase/client'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
@@ -11,23 +12,38 @@ import {
   getExamenByRegimen, EXAM_STORAGE_KEY,
   type ExamResult,
 } from '@/lib/constants/examenes'
-import { CheckCircle2, XCircle, Trophy, Zap, RotateCcw, ArrowLeft, Star, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  CertificadoAprobacion,
+  type CertificadoAprobacionData,
+} from '@/components/certificados/CertificadoAprobacion'
+import { useCertificadoPDF } from '@/hooks/useCertificadoPDF'
+import {
+  CheckCircle2, XCircle, Trophy, Zap, RotateCcw, ArrowLeft,
+  Star, ChevronDown, ChevronUp, GraduationCap, Download,
+} from 'lucide-react'
 
 export default function ResultadoExamenPage() {
-  const params = useParams()
-  const router = useRouter()
+  const params   = useParams()
+  const router   = useRouter()
   const { user } = useUser()
 
   const regime = (params?.regimen as string)?.toUpperCase().replace('-', '_')
-  const exam = getExamenByRegimen(regime)
-  const [result, setResult] = useState<ExamResult | null>(null)
-  const [order, setOrder] = useState<number[]>([])
+  const exam   = getExamenByRegimen(regime)
+  const isTributar = regime === 'TRIBUTAR'
+
+  const [result, setResult]         = useState<ExamResult | null>(null)
+  const [order, setOrder]           = useState<number[]>([])
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
+  const [profileName, setProfileName] = useState<string | null>(null)
+  const [showCert, setShowCert]     = useState(false)
+
+  const certRef = useRef<HTMLDivElement>(null)
+  const { exportar, generating } = useCertificadoPDF()
 
   useEffect(() => {
     if (!user) return
     const key = EXAM_STORAGE_KEY(user.id, regime)
-    const stored = localStorage.getItem(key)
+    const stored      = localStorage.getItem(key)
     const storedOrder = localStorage.getItem(key + '_answers_order')
     if (stored) {
       try { setResult(JSON.parse(stored)) } catch { /* ignore */ }
@@ -39,17 +55,40 @@ export default function ResultadoExamenPage() {
     }
   }, [user, regime])
 
+  // Cargar nombre del perfil para el certificado TRIBUTAR
+  useEffect(() => {
+    if (!user || !isTributar) return
+    const supabase = createClient()
+    ;(supabase as any)
+      .from('taxpayer_profiles')
+      .select('entity_name')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle()
+      .then(({ data }: { data: { entity_name: string } | null }) => {
+        if (data?.entity_name) setProfileName(data.entity_name)
+      })
+  }, [user, isTributar])
+
   if (!user || !exam) return <PageContainer><div className="flex justify-center py-20"><Spinner /></div></PageContainer>
-  if (!result) return <PageContainer><div className="flex justify-center py-20"><Spinner /></div></PageContainer>
+  if (!result)        return <PageContainer><div className="flex justify-center py-20"><Spinner /></div></PageContainer>
 
   const questions = order.length > 0 ? order.map(i => exam.questions[i]) : exam.questions
-  const isPassed = result.passed
+  const isPassed  = result.passed
   const retryHref = `/examen/${params.regimen}`
-  const backHref = regime === 'MONOTRIBUTO' ? '/monotributo' : '/iva'
+  const backHref  = isTributar ? '/desafios' : regime === 'MONOTRIBUTO' ? '/monotributo' : '/iva'
 
-  const CIRCLE_R = 46
+  const CIRCLE_R      = 46
   const CIRCLE_CIRCUM = 2 * Math.PI * CIRCLE_R
-  const scoreDash = CIRCLE_CIRCUM * (result.score / 100)
+  const scoreDash     = CIRCLE_CIRCUM * (result.score / 100)
+
+  const certNumber = `CERT-${user.id.slice(0, 6).toUpperCase()}-${new Date(result.completedAt).getFullYear()}`
+  const certData: CertificadoAprobacionData = {
+    nombre:      profileName || user.email || 'Estudiante',
+    score:       result.score,
+    completedAt: result.completedAt,
+    certNumber,
+  }
 
   return (
     <PageContainer
@@ -58,12 +97,11 @@ export default function ResultadoExamenPage() {
     >
       <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* ── Resultado principal ───────────────────────────── */}
+        {/* ── Resultado principal ── */}
         <div className={cn(
           'rounded-2xl border-2 p-6 text-center',
-          isPassed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-300'
+          isPassed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-300',
         )}>
-          {/* Score circular */}
           <div className="flex justify-center mb-4">
             <div className="relative w-32 h-32">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 110 110">
@@ -110,7 +148,54 @@ export default function ResultadoExamenPage() {
           )}
         </div>
 
-        {/* ── Botones de acción ─────────────────────────────── */}
+        {/* ── Certificado (solo examen TRIBUTAR aprobado) ── */}
+        {isPassed && isTributar && (
+          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <GraduationCap className="w-6 h-6 text-amber-600" />
+              <div>
+                <p className="text-sm font-black text-amber-900">¡Obtuviste tu Certificado de Finalización!</p>
+                <p className="text-xs text-amber-700">Completaste el recorrido completo del Simulador TRIBUT.AR.</p>
+              </div>
+            </div>
+
+            {!showCert ? (
+              <button
+                onClick={() => setShowCert(true)}
+                className="w-full py-2.5 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <GraduationCap className="w-4 h-4" /> Ver certificado
+              </button>
+            ) : (
+              <div className="space-y-3">
+                {/* Vista previa del certificado (scroll horizontal en mobile) */}
+                <div className="overflow-x-auto rounded-xl border border-amber-200 bg-white">
+                  <div style={{ minWidth: '794px' }}>
+                    <CertificadoAprobacion ref={certRef} data={certData} />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => exportar(certRef, `Certificado_TRIBUTAR_${certNumber}`)}
+                    disabled={generating}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    {generating ? 'Generando PDF…' : 'Descargar PDF'}
+                  </button>
+                  <button
+                    onClick={() => setShowCert(false)}
+                    className="px-4 py-2.5 border border-amber-300 text-amber-700 text-sm font-semibold rounded-xl hover:bg-amber-100 transition-colors"
+                  >
+                    Ocultar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Botones de acción ── */}
         <div className="flex gap-3 flex-wrap justify-center">
           <Link
             href={retryHref}
@@ -119,14 +204,15 @@ export default function ResultadoExamenPage() {
             <RotateCcw className="w-4 h-4" /> Volver a intentar
           </Link>
           <Link
-            href="/dashboard"
+            href={backHref}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-primary-700 text-white rounded-xl hover:bg-primary-800 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Volver al panel
+            <ArrowLeft className="w-4 h-4" />
+            {isTributar ? 'Volver a Desafíos' : 'Volver al panel'}
           </Link>
         </div>
 
-        {/* ── Desglose de respuestas ────────────────────────── */}
+        {/* ── Desglose de respuestas ── */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-bold text-slate-800 text-sm">Revisión detallada</h3>
@@ -138,7 +224,7 @@ export default function ResultadoExamenPage() {
 
           <div className="divide-y divide-slate-50">
             {questions.map((q, i) => {
-              const selected = result.answers[i]
+              const selected  = result.answers[i]
               const isCorrect = selected === q.correctIndex
               const isExpanded = expandedIdx === i
 
@@ -169,9 +255,8 @@ export default function ResultadoExamenPage() {
                     }
                   </button>
 
-                  {/* Explicación expandida */}
                   {isExpanded && (
-                    <div className={cn('px-5 pb-4 ml-8 space-y-2')}>
+                    <div className="px-5 pb-4 ml-8 space-y-2">
                       <div className={cn('flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold', isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800')}>
                         {isCorrect
                           ? <><CheckCircle2 className="w-3.5 h-3.5" /> Respuesta correcta: {q.options[q.correctIndex]}</>
@@ -199,8 +284,11 @@ export default function ResultadoExamenPage() {
             </div>
             <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
               <li>Leé las explicaciones de las preguntas incorrectas antes de reintentar</li>
-              <li>Repasá el módulo del régimen desde el Administrador de Relaciones</li>
-              <li>Necesitás un mínimo de {exam.passingScore}% ({Math.ceil(exam.passingScore / 10)} de 10 correctas) para aprobar</li>
+              {isTributar
+                ? <li>Repasá los módulos del simulador: navegación, integración con PyMEZ 360 y flujo laboral</li>
+                : <li>Repasá el módulo del régimen desde el Administrador de Relaciones</li>
+              }
+              <li>Necesitás un mínimo de {exam.passingScore}% ({Math.ceil(exam.passingScore * exam.questions.length / 100)} de {exam.questions.length} correctas) para aprobar</li>
               <li>No hay penalidad por repetir el examen</li>
             </ul>
           </div>

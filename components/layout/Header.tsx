@@ -45,6 +45,14 @@ const PAGE_TITLES: Record<string, string> = {
   '/misiones/otros-tributos': 'Otros tributos provinciales',
   '/misiones/sr341': 'SR-341 — Agente de retención',
   '/misiones/cumplimiento': 'Panel de cumplimiento',
+  // Desafíos y exámenes
+  '/desafios': 'Desafíos fiscales',
+  '/examen/monotributo': 'Examen — Monotributista',
+  '/examen/monotributo/resultado': 'Resultado — Examen Monotributo',
+  '/examen/regimen-general': 'Examen — Régimen General',
+  '/examen/regimen-general/resultado': 'Resultado — Examen Régimen General',
+  '/examen/tributar': 'Examen Final — Simulador TRIBUT.AR',
+  '/examen/tributar/resultado': 'Resultado — Examen Final',
 }
 
 export function Header({ userName, unreadNotifications = 0, onMenuToggle, onSignOut }: HeaderProps) {
