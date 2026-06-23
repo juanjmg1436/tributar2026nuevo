@@ -169,15 +169,6 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
         </div>
       )}
 
-      {/* Apoyo al proyecto */}
-      <div className="px-3 py-2 border-t border-slate-100 flex-shrink-0">
-        <div className="w-full text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-          <p className="font-semibold text-blue-700 mb-1">💙 Apoyar el proyecto</p>
-          <p className="font-mono text-[10px] text-blue-800 break-all select-all">CVU: 0000003100045253425987</p>
-          <p className="text-blue-600 mt-0.5 text-[10px]">Alias: <span className="font-semibold select-all">juanjmg14</span></p>
-        </div>
-      </div>
-
       {/* User + sign out */}
       <div className="px-4 py-3 border-t border-slate-100 flex-shrink-0">
         <div className="flex items-center gap-2">
