@@ -485,30 +485,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── APOYÁ EL PROYECTO ───────────────────────────── */}
-      <section className="py-14 bg-blue-50 border-y border-blue-100">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Colaboraciones</p>
-          <h2 className="text-2xl font-bold text-blue-900 mb-3">¿Te resultó útil TRIBUT.AR?</h2>
-          <p className="text-blue-700 text-base mb-6 max-w-xl mx-auto">
-            Esta herramienta es y seguirá siendo <strong>gratuita</strong>. Si querés apoyar el
-            desarrollo de nuevos módulos, podés hacer un aporte voluntario por Mercado Pago.
-          </p>
-          <div className="inline-block bg-white border border-blue-200 rounded-2xl px-6 py-5 shadow-sm text-left">
-            <p className="text-sm font-semibold text-blue-800 mb-2">💙 Transferir por Mercado Pago</p>
-            <p className="text-xs text-blue-600 mb-1">
-              CVU: <span className="font-mono font-semibold text-blue-900 select-all">0000003100045253425987</span>
-            </p>
-            <p className="text-xs text-blue-600">
-              Alias: <span className="font-semibold text-blue-900 select-all">juanjmg14</span>
-            </p>
-          </div>
-          <p className="text-xs text-blue-500 mt-4">
-            Aporte voluntario · simulareducativo@gmail.com
-          </p>
-        </div>
-      </section>
-
       {/* ── SIMUL.AR BRAND ──────────────────────────────── */}
       <section className="py-14 bg-gradient-to-br from-slate-900 to-primary-950 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
