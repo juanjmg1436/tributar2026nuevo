@@ -13,7 +13,7 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { MODULE_INFO } from '@/lib/constants/misiones'
 import {
   Building2, FileText, CreditCard, Scale, Car, Stamp, ClipboardCheck,
-  BookOpen, ShieldCheck, AlertTriangle, CheckCircle2, ChevronRight,
+  AlertTriangle, CheckCircle2, ChevronRight,
   MapPin, Info
 } from 'lucide-react'
 import type { ProvIIBBDDJJ, ProvPayment } from '@/types/provincial'
@@ -51,8 +51,6 @@ export default function MisionesPage() {
     { href: '/misiones/otros-tributos', label: 'Otros tributos', icon: <Scale className="w-5 h-5" />, desc: 'Inmobiliario · Automotor · Sellos', color: 'orange', locked: !taxpayer },
     { href: '/misiones/sr341', label: 'SR-341', icon: <Stamp className="w-5 h-5" />, desc: 'Agentes de retención', color: 'purple', locked: !taxpayer },
     { href: '/misiones/cumplimiento', label: 'Cumplimiento', icon: <ClipboardCheck className="w-5 h-5" />, desc: 'Estado de obligaciones', color: 'teal', locked: !taxpayer },
-    { href: '/misiones/casos', label: 'Casos prácticos', icon: <BookOpen className="w-5 h-5" />, desc: '3 ejercicios guiados', color: 'amber', locked: false },
-    { href: '/misiones/admin', label: 'Panel docente', icon: <ShieldCheck className="w-5 h-5" />, desc: 'Seguimiento de estudiantes', color: 'slate', locked: false },
   ]
 
   const colorMap: Record<string, string> = {

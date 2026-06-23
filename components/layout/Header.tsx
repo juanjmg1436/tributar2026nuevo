@@ -45,8 +45,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/misiones/otros-tributos': 'Otros tributos provinciales',
   '/misiones/sr341': 'SR-341 — Agente de retención',
   '/misiones/cumplimiento': 'Panel de cumplimiento',
-  '/misiones/casos': 'Casos prácticos',
-  '/misiones/admin': 'Panel docente',
 }
 
 export function Header({ userName, unreadNotifications = 0, onMenuToggle, onSignOut }: HeaderProps) {
