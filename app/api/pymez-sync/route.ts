@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // ── 3. Resumen IIBB: suma de ventas netas para base imponible ─────────────
+  // ── 3. Resumen IIBB: base imponible desde mayor de contabilidad (cuentas de ingreso) ──
   if (action === 'iibb-summary') {
     const token  = searchParams.get('token')?.trim().toUpperCase()
     const period = searchParams.get('period')
@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
 
     const { data: company } = await db
       .from('companies')
-      .select('id, name, cuit')
+      .select('id, name, cuit, microemprendimiento_mode')
       .eq('sync_token', token)
       .maybeSingle()
 
@@ -174,29 +174,88 @@ export async function GET(req: NextRequest) {
     const dateFrom = `${period}-01`
     const dateTo   = new Date(year, month, 0).toISOString().split('T')[0]
 
-    const { data: sales, error: salesErr } = await db
-      .from('sales')
-      .select('total, iva_rate, document_type, status')
+    // ── Paso 1: asientos del período para esta empresa ────────────────────────
+    const { data: entries, error: entryErr } = await db
+      .from('journal_entries')
+      .select('id')
       .eq('company_id', company.id)
       .gte('date', dateFrom)
       .lte('date', dateTo)
-      .neq('status', 'anulado')
 
-    if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
+    if (entryErr) return NextResponse.json({ error: entryErr.message }, { status: 500 })
 
-    // Base IIBB: para RI = precio neto sin IVA; para Monotributista/Autónomo = precio total facturado.
-    // En PyMEZ, sales.total es el precio base (IVA separado como sales.total * iva_rate),
-    // por lo que el campo es correcto para ambos casos: si iva_rate=0 (monotributista),
-    // sales.total ya es el precio de venta completo.
-    const totalSalesNet = (sales ?? []).reduce((sum, s) => sum + (s.total ?? 0), 0)
+    const entryIds = (entries ?? []).map((e: any) => e.id)
+
+    if (entryIds.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        company_name:    company.name,
+        company_cuit:    company.cuit,
+        period,
+        total_sales_net: 0,
+        line_count:      0,
+        source:          'mayor_contabilidad',
+        message:         'Sin asientos contables en este período.',
+      })
+    }
+
+    // ── Paso 2: cuentas de ingreso del plan de cuentas ────────────────────────
+    const { data: incomeAccts, error: acctErr } = await db
+      .from('chart_of_accounts')
+      .select('id, name')
+      .eq('company_id', company.id)
+      .or('account_type.eq.ingreso,account_type.eq.ingresos,account_type.eq.income')
+
+    if (acctErr) return NextResponse.json({ error: acctErr.message }, { status: 500 })
+
+    let accountIds: string[] = (incomeAccts ?? []).map((a: any) => a.id)
+
+    // Fallback: si no hay cuentas por account_type, buscar por nombre que contenga "venta"
+    if (accountIds.length === 0) {
+      const { data: fallbackAccts } = await db
+        .from('chart_of_accounts')
+        .select('id, name')
+        .eq('company_id', company.id)
+        .ilike('name', '%venta%')
+      accountIds = (fallbackAccts ?? []).map((a: any) => a.id)
+    }
+
+    if (accountIds.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        company_name:    company.name,
+        company_cuit:    company.cuit,
+        period,
+        total_sales_net: 0,
+        line_count:      0,
+        source:          'mayor_contabilidad',
+        message:         'No se encontraron cuentas de ingreso en el plan de cuentas. Creá una cuenta de tipo "Ingreso" o con nombre "Ventas".',
+      })
+    }
+
+    // ── Paso 3: sumar líneas del mayor (crédito − débito en cuentas de ingreso) ─
+    const { data: lines, error: lineErr } = await db
+      .from('journal_entry_lines')
+      .select('credit, debit')
+      .in('entry_id', entryIds)
+      .in('account_id', accountIds)
+
+    if (lineErr) return NextResponse.json({ error: lineErr.message }, { status: 500 })
+
+    // Las cuentas de ingreso incrementan con CRÉDITO y disminuyen con DÉBITO
+    const baseImponible = (lines ?? []).reduce(
+      (sum: number, l: any) => sum + (l.credit ?? 0) - (l.debit ?? 0),
+      0,
+    )
 
     return NextResponse.json({
       ok: true,
       company_name:    company.name,
       company_cuit:    company.cuit,
       period,
-      total_sales_net: Math.round(totalSalesNet * 100) / 100,
-      invoice_count:   (sales ?? []).length,
+      total_sales_net: Math.round(Math.max(0, baseImponible) * 100) / 100,
+      line_count:      (lines ?? []).length,
+      source:          'mayor_contabilidad',
     })
   }
 
