@@ -13,10 +13,11 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import {
   Users, Link2, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink,
   TrendingUp, FileText, Info, XCircle, UserPlus, UserMinus,
-  CreditCard, Clock, CheckCircle,
+  CreditCard, Clock, CheckCircle, Lock,
 } from 'lucide-react'
 
 type Tab = 'vincular' | 'empleados' | 'liquidaciones' | 'f931'
+type TabDef = { id: Tab; label: string; icon: React.ReactNode; locked: boolean; lockReason?: string }
 
 interface S360Employee {
   id: string; apellido: string; nombre: string; cuil: string
@@ -233,15 +234,25 @@ export function RelacionesLaboralesModule() {
     setBusy(false)
   }
 
-  const employees = syncData?.employees_json  || []
-  const payrolls  = syncData?.payroll_runs_json || []
-  const f931s     = syncData?.f931_json        || []
+  const employees    = syncData?.employees_json    || []
+  const payrolls     = syncData?.payroll_runs_json || []
+  const f931s        = syncData?.f931_json         || []
+  const isLinked     = !!syncData
+  const hasEmployees = employees.length > 0
 
-  const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'vincular',      label: 'Vincular',      icon: <Link2      className="w-3.5 h-3.5" /> },
-    { id: 'empleados',     label: 'Empleados',     icon: <Users      className="w-3.5 h-3.5" /> },
-    { id: 'liquidaciones', label: 'Liquidaciones', icon: <TrendingUp className="w-3.5 h-3.5" /> },
-    { id: 'f931',          label: 'F.931 / VEP',   icon: <FileText   className="w-3.5 h-3.5" /> },
+  const TABS: TabDef[] = [
+    { id: 'vincular',      label: 'Vincular',      icon: <Link2      className="w-3.5 h-3.5" />, locked: false },
+    { id: 'empleados',     label: 'Empleados',     icon: <Users      className="w-3.5 h-3.5" />, locked: false },
+    {
+      id: 'liquidaciones', label: 'Liquidaciones', icon: <TrendingUp className="w-3.5 h-3.5" />,
+      locked: !hasEmployees,
+      lockReason: isLinked ? 'Primero registrá al menos un empleado activo.' : 'Primero vinculá tu empresa en Sueldos 360.',
+    },
+    {
+      id: 'f931',          label: 'F.931 / VEP',   icon: <FileText   className="w-3.5 h-3.5" />,
+      locked: !hasEmployees,
+      lockReason: isLinked ? 'Primero registrá al menos un empleado activo.' : 'Primero vinculá tu empresa en Sueldos 360.',
+    },
   ]
 
   if (loading) return (
@@ -266,10 +277,18 @@ export function RelacionesLaboralesModule() {
       {/* tabs */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn('flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap',
-              tab === t.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-            {t.icon}<span className="hidden sm:inline">{t.label}</span>
+          <button key={t.id}
+            onClick={() => { if (!t.locked) setTab(t.id) }}
+            title={t.locked ? t.lockReason : undefined}
+            aria-disabled={t.locked}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap',
+              tab === t.id && !t.locked ? 'bg-white text-slate-800 shadow-sm' :
+              t.locked ? 'text-slate-300 cursor-not-allowed select-none' :
+              'text-slate-500 hover:text-slate-700',
+            )}>
+            {t.locked ? <Lock className="w-3.5 h-3.5" /> : t.icon}
+            <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
@@ -397,10 +416,28 @@ export function RelacionesLaboralesModule() {
       {/* ══ LIQUIDACIONES ════════════════════════════════════════════════════ */}
       {tab === 'liquidaciones' && (
         <div className="space-y-3">
-          {payrolls.length === 0 ? (
-            <Alert variant="warning">
-              {syncData ? 'No hay liquidaciones en Sueldos 360.' : 'Primero vinculá tu empresa.'}
-            </Alert>
+          {!hasEmployees ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                <Lock className="w-7 h-7 text-slate-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">Sin empleados registrados</p>
+                <p className="text-xs text-slate-500 max-w-xs">
+                  {isLinked
+                    ? 'No podés liquidar sueldos si no hay empleados dados de alta. Registrá al menos uno en la solapa Empleados.'
+                    : 'Primero vinculá tu empresa en Sueldos 360 y registrá empleados.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setTab('empleados')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition-colors">
+                <UserPlus className="w-3.5 h-3.5" />
+                {isLinked ? 'Ir a Empleados' : 'Vincular empresa'}
+              </button>
+            </div>
+          ) : payrolls.length === 0 ? (
+            <Alert variant="warning">No hay liquidaciones en Sueldos 360.</Alert>
           ) : (
             <>
               <p className="text-sm font-bold text-slate-700">Últimas {payrolls.length} liquidaciones</p>
@@ -449,6 +486,28 @@ export function RelacionesLaboralesModule() {
       {/* ══ F.931 / VEP ══════════════════════════════════════════════════════ */}
       {tab === 'f931' && (
         <div className="space-y-3">
+          {!hasEmployees ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                <Lock className="w-7 h-7 text-slate-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">Sin empleados registrados</p>
+                <p className="text-xs text-slate-500 max-w-xs">
+                  {isLinked
+                    ? 'No podés generar el F.931 sin empleados dados de alta. La declaración de cargas sociales requiere al menos un trabajador activo.'
+                    : 'Primero vinculá tu empresa en Sueldos 360 y registrá empleados.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setTab('empleados')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition-colors">
+                <UserPlus className="w-3.5 h-3.5" />
+                {isLinked ? 'Ir a Empleados' : 'Vincular empresa'}
+              </button>
+            </div>
+          ) : (
+          <>
           <div className="p-3 bg-violet-50 border border-violet-100 rounded-xl text-xs text-violet-700">
             <strong>F.931</strong> — DDJJ mensual de cargas sociales. Al presentarla en ARCA, se genera un
             <strong> VEP</strong> para abonar entre los días 10 y 14 del mes siguiente (según último dígito del CUIT).
@@ -456,9 +515,7 @@ export function RelacionesLaboralesModule() {
           </div>
 
           {f931s.length === 0 ? (
-            <Alert variant="warning">
-              {syncData ? 'No hay F.931 en Sueldos 360.' : 'Primero vinculá tu empresa.'}
-            </Alert>
+            <Alert variant="warning">No hay F.931 en Sueldos 360.</Alert>
           ) : (
             <div className="space-y-3">
               {f931s.map(f => {
@@ -551,6 +608,8 @@ export function RelacionesLaboralesModule() {
                 )
               })}
             </div>
+          )}
+          </>
           )}
         </div>
       )}
