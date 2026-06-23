@@ -14,11 +14,13 @@ import { calculatePayroll, calculatePayrollSummary } from '@/lib/fiscal-engine/p
 import { formatPeriod, currentPeriod } from '@/lib/fiscal-engine'
 import type { Employee, PayrollCalculation } from '@/types/fiscal'
 import { AlertTriangle, Info, RefreshCw, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { useRegime } from '@/hooks/useRegime'
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 export default function SueldosPage() {
   const { user, loading: userLoading } = useUser()
+  const regime = useRegime()
   const supabase = createClient()
   const { params } = useFiscalParams()
   const [loading, setLoading] = useState(true)
@@ -166,6 +168,35 @@ export default function SueldosPage() {
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-xs text-amber-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
       </div>
+
+      {/* Advertencia Monotributista: el costo laboral impacta en la recategorización */}
+      {regime.regime === 'monotributista' && (
+        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl flex gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-amber-800 mb-1">Empleados y recategorización del Monotributo</p>
+            <p className="text-xs text-amber-700 leading-relaxed mb-2">
+              Como Monotributista con empleados, tu categoría se determina por <strong>tres parámetros simultáneos</strong>:
+              ingresos anuales, superficie del local Y cantidad de empleados. Tenés que estar en la categoría
+              que cumpla los tres límites al mismo tiempo.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="bg-white border border-amber-200 rounded-lg px-3 py-2">
+                <p className="font-bold text-amber-800 mb-0.5">Impacto en categoría</p>
+                <p className="text-amber-700">Tener empleados te fuerza a estar en Cat. C o superior, aunque tus ingresos sean menores.</p>
+              </div>
+              <div className="bg-white border border-amber-200 rounded-lg px-3 py-2">
+                <p className="font-bold text-amber-800 mb-0.5">Costo laboral NO es ingreso</p>
+                <p className="text-amber-700">El costo de los sueldos no se descuenta de la base del Monotributo. Hay que abonarlo con los ingresos generados.</p>
+              </div>
+              <div className="bg-white border border-amber-200 rounded-lg px-3 py-2">
+                <p className="font-bold text-amber-800 mb-0.5">Verificá tu categoría</p>
+                <p className="text-amber-700">Si tenés 1 empleado → mínimo Cat. C. Si tenés 2 → Cat. F. Si tenés 3 → Cat. I.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info pedagógica */}
       <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3">

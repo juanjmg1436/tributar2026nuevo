@@ -486,6 +486,22 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
               </div>
             )}
 
+            {/* Alerta de incompatibilidad de modo */}
+            {pymezCompanyId && pymezCompanies.find(c => c.id === pymezCompanyId)?.microemprendimiento_mode === true && (
+              <div className="mb-3 p-3 bg-amber-50 border border-amber-300 rounded-xl flex gap-2 items-start">
+                <span className="text-amber-500 flex-shrink-0">⚠️</span>
+                <div>
+                  <p className="text-xs font-bold text-amber-800">Empresa en Modo Microemprendimiento (Monotributista)</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Esta empresa tiene activado el <strong>Modo Microemprendimiento</strong> en PyMEZ 360,
+                    que corresponde a régimen Monotributista. En ese modo, contabilidad e impuestos
+                    están bloqueados y <strong>no hay datos de IVA disponibles para sincronizar</strong>.
+                    Para usar este módulo, la empresa debe estar en <strong>Modo General (RI)</strong> en PyMEZ 360.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
               {/* Empresa */}
               <div>
@@ -531,7 +547,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
                   size="sm"
                   onClick={syncFromPymez}
                   loading={pymezLoading}
-                  disabled={!pymezCompanyId || pymezToken.length < 6}
+                  disabled={
+                    !pymezCompanyId || pymezToken.length < 6 ||
+                    pymezCompanies.find(c => c.id === pymezCompanyId)?.microemprendimiento_mode === true
+                  }
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40"
                 >
                   <Download className="w-3.5 h-3.5 mr-1.5" />

@@ -54,7 +54,7 @@ export function MonotributoModule() {
   // PyMEZ 360 sync — recategorización
   const [pymezToken, setPymezToken]     = useState('')
   const [pymezSyncing, setPymezSyncing] = useState(false)
-  const [pymezData, setPymezData]       = useState<{ annual_total: number; company_name: string; months: {period:string;total:number}[] } | null>(null)
+  const [pymezData, setPymezData]       = useState<{ annual_total: number; company_name: string; microemprendimiento_mode: boolean; months: {period:string;total:number}[] } | null>(null)
   const [pymezError, setPymezError]     = useState<string | null>(null)
 
   // Wizard
@@ -444,24 +444,41 @@ export function MonotributoModule() {
               </div>
               {pymezError && <p className="text-xs text-red-600 mt-2">{pymezError}</p>}
               {pymezData && (
-                <div className="mt-3 bg-white rounded-xl border border-violet-100 p-3">
-                  <p className="text-xs font-semibold text-violet-700 mb-1">{pymezData.company_name} — últimos 12 meses</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-600">Ingreso anual real</span>
-                    <span className="text-sm font-black text-slate-800">{formatCurrency(pymezData.annual_total)}</span>
+                <div className="mt-3 space-y-2">
+                  {/* Alerta de incompatibilidad cross-app */}
+                  {pymezData.microemprendimiento_mode === false && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex gap-2 items-start">
+                      <span className="text-amber-500 flex-shrink-0">⚠️</span>
+                      <div>
+                        <p className="text-xs font-bold text-amber-800">Empresa en Modo General (RI) en PyMEZ 360</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          Esta empresa tiene activado el <strong>Modo General</strong> en PyMEZ 360, que corresponde
+                          a régimen Responsable Inscripto. Como sos <strong>Monotributista</strong> en TRIBUT.AR,
+                          los regímenes son incompatibles. Activá el <strong>Modo Microemprendimiento</strong> en
+                          PyMEZ 360 para que los datos coincidan.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-white rounded-xl border border-violet-100 p-3">
+                    <p className="text-xs font-semibold text-violet-700 mb-1">{pymezData.company_name} — últimos 12 meses</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-600">Ingreso anual real</span>
+                      <span className="text-sm font-black text-slate-800">{formatCurrency(pymezData.annual_total)}</span>
+                    </div>
+                    <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full',
+                          pymezData.annual_total >= currentCat.max_annual_income ? 'bg-red-500' :
+                          pymezData.annual_total >= currentCat.max_annual_income * 0.8 ? 'bg-amber-500' : 'bg-emerald-500')}
+                        style={{ width: `${Math.min((pymezData.annual_total / currentCat.max_annual_income) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {Math.round((pymezData.annual_total / currentCat.max_annual_income) * 100)}% del límite Cat. {profile.category_code}
+                      {pymezData.annual_total > currentCat.max_annual_income && ' · ⚠️ Superás el límite — recategorizá'}
+                    </p>
                   </div>
-                  <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full',
-                        pymezData.annual_total >= currentCat.max_annual_income ? 'bg-red-500' :
-                        pymezData.annual_total >= currentCat.max_annual_income * 0.8 ? 'bg-amber-500' : 'bg-emerald-500')}
-                      style={{ width: `${Math.min((pymezData.annual_total / currentCat.max_annual_income) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {Math.round((pymezData.annual_total / currentCat.max_annual_income) * 100)}% del límite Cat. {profile.category_code}
-                    {pymezData.annual_total > currentCat.max_annual_income && ' · ⚠️ Superás el límite — recategorizá'}
-                  </p>
                 </div>
               )}
             </Card>

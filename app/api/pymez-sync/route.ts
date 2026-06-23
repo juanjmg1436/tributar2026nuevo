@@ -21,11 +21,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action') ?? 'companies'
 
-  // ── 1. Listar empresas (solo nombre/id — el token lo ve el dueño en PyMEZ) ──
+  // ── 1. Listar empresas (incluye modo para validación cross-app) ────────────
   if (action === 'companies') {
     const { data: companies, error } = await db
       .from('companies')
-      .select('id, name, cuit, fiscal_condition')
+      .select('id, name, cuit, fiscal_condition, microemprendimiento_mode')
       .order('name')
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -245,11 +245,12 @@ export async function GET(req: NextRequest) {
       .map(([period, total]) => ({ period, total: Math.round(total * 100) / 100 }))
 
     return NextResponse.json({
-      ok:            true,
-      company_name:  company.name,
-      company_cuit:  company.cuit,
-      annual_total:  Math.round(annualTotal * 100) / 100,
-      invoice_count: sales?.length ?? 0,
+      ok:                      true,
+      company_name:            company.name,
+      company_cuit:            company.cuit,
+      microemprendimiento_mode: (company as any).microemprendimiento_mode ?? false,
+      annual_total:            Math.round(annualTotal * 100) / 100,
+      invoice_count:           sales?.length ?? 0,
       months,
     })
   }
