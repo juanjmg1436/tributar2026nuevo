@@ -135,11 +135,15 @@ export default function PerfilContribuyentePage() {
           .update(payload)
           .eq('id', existing.id)
         if (updateError) throw updateError
+        setExisting({ ...existing, ...payload, updated_at: new Date().toISOString() })
       } else {
-        const { error: insertError } = await supabase
+        const { data: newProfile, error: insertError } = await supabase
           .from('taxpayer_profiles')
           .insert({ ...payload, slot: 1, alias: payload.entity_name, is_active: true })
+          .select()
+          .single()
         if (insertError) throw insertError
+        setExisting(newProfile)
       }
 
       // Log activity
@@ -163,7 +167,6 @@ export default function PerfilContribuyentePage() {
       }
 
       setSuccess(true)
-      setExisting({ ...payload, id: existing?.id || '', created_at: existing?.created_at || new Date().toISOString(), updated_at: new Date().toISOString() })
       setTimeout(() => setSuccess(false), 4000)
     } catch (err: any) {
       setError(err.message || 'Error al guardar. Intentá nuevamente.')
