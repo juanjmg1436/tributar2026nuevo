@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { SimuladorBanner } from '@/components/layout/SimuladorBanner'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
-import { MobileNav } from '@/components/layout/MobileNav'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { useProgress } from '@/hooks/useProgress'
@@ -42,8 +41,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         unreadCount={unreadCount}
         userName={profile?.full_name}
         onSignOut={handleSignOut}
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
       />
-      <div className="lg:pl-72">
+      <div className="lg:pl-64">
         <Header
           onMenuToggle={() => setMobileNavOpen(true)}
           userName={profile?.full_name}
@@ -59,13 +60,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
-      <MobileNav
-        isOpen={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
-        progress={progress}
-        userName={profile?.full_name}
-        onSignOut={handleSignOut}
-      />
     </div>
   )
 }
