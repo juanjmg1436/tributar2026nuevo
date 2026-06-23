@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { useProvincialTaxpayer } from '@/hooks/useProvincialTaxpayer'
+import { useRegime } from '@/hooks/useRegime'
 import { IIBB_ACTIVITIES, calcIIBBDueDate, formatPeriodLabel } from '@/lib/constants/misiones'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -37,6 +38,7 @@ interface PymezData {
 export default function NuevaDDJJPage() {
   const { user } = useUser()
   const { taxpayer, loading } = useProvincialTaxpayer(user?.id)
+  const regime = useRegime()
   const router = useRouter()
   const supabase = createClient()
 
@@ -222,6 +224,30 @@ export default function NuevaDDJJPage() {
         <p className="text-xs text-red-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
       </div>
 
+      {/* ── Gate Monotributista ────────────────────────────────────────────── */}
+      {regime.regime === 'monotributista' && (
+        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800 mb-1">Monotributistas no presentan DDJJ mensual de IIBB</p>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                En Misiones (y en la mayoría de las provincias), el Impuesto sobre los Ingresos Brutos
+                está <strong>unificado al pago del Monotributo</strong>. El componente provincial
+                queda comprendido dentro de la cuota mensual que abonás a ARCA — no existe una
+                declaración jurada separada ante la ATM Misiones.
+              </p>
+              <p className="text-xs text-amber-600 mt-2 font-semibold">
+                ✓ Tu obligación provincial se cumple al pagar la cuota mensual del Monotributo.
+              </p>
+              <p className="text-[10px] text-amber-500 mt-1 italic">
+                El formulario siguiente está disponible solo a fines educativos para conocer el procedimiento del Régimen General.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!taxpayer ? (
         <Alert variant="warning">
           Primero completá el <a href="/misiones/alta" className="underline font-semibold">alta provincial →</a>
@@ -229,6 +255,23 @@ export default function NuevaDDJJPage() {
       ) : (
         <>
           {error && <Alert variant="error" className="mb-4">{error}</Alert>}
+
+          {/* ── Gate Convenio Multilateral ──────────────────────────────────── */}
+          {taxpayer.iibb_regime === 'convenio_multilateral' && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-300 rounded-xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-blue-800 mb-1">Convenio Multilateral — presentación en COMARB</p>
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  Estás inscripto en Convenio Multilateral. Las declaraciones juradas no se presentan
+                  en ATM Misiones sino en el sistema <strong>SIFERE / COMARB</strong> (Comisión Arbitral).
+                  El formulario que completás aquí es didáctico para entender la mecánica del cálculo,
+                  pero en la realidad la distribución de la base imponible entre provincias se hace
+                  conforme a los coeficientes del CM.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Período */}
           <Card padding="md" className="mb-4">
@@ -391,31 +434,92 @@ export default function NuevaDDJJPage() {
             </div>
           </Card>
 
-          {/* Totales */}
+          {/* ── Resumen liquidación — 3 pasos ──────────────────────────────── */}
           <Card padding="md" className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
               <Calculator className="w-4 h-4 text-slate-400" />
-              <h3 className="font-semibold text-slate-700 text-sm">Resumen de la declaración</h3>
+              <h3 className="font-semibold text-slate-700 text-sm">Liquidación del impuesto</h3>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-400 mb-1">Total ingresos</p>
-                <p className="font-bold text-slate-800 text-sm">{formatCurrency(totalRevenue)}</p>
+
+            {/* PASO 1 — Base Imponible */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold bg-slate-700 text-white rounded-full px-2 py-0.5">PASO 1</span>
+                <span className="text-xs font-bold text-slate-600">Determinación de la Base Imponible</span>
               </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-400 mb-1">Base imponible</p>
-                <p className="font-bold text-slate-800 text-sm">{formatCurrency(totalTaxable)}</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-400 mb-1">Impuesto determinado</p>
-                <p className="font-bold text-orange-600 text-sm">{formatCurrency(totalTax)}</p>
-              </div>
-              <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
-                <p className="text-xs text-primary-600 mb-1">Impuesto neto a pagar</p>
-                <p className="font-bold text-primary-700 text-lg">{formatCurrency(netTax)}</p>
+              <div className="bg-slate-50 rounded-lg p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Total ingresos netos facturados (sin IVA)</span>
+                  <span className="font-semibold">{formatCurrency(totalRevenue)}</span>
+                </div>
+                {totalExempt > 0 && (
+                  <div className="flex justify-between text-slate-500">
+                    <span>− Rentas exentas</span>
+                    <span className="font-semibold text-red-500">− {formatCurrency(totalExempt)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold text-slate-800">
+                  <span>= Base imponible</span>
+                  <span>{formatCurrency(totalTaxable)}</span>
+                </div>
               </div>
             </div>
-            <div className="mt-3">
+
+            {/* PASO 2 — Impuesto Bruto */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold bg-slate-700 text-white rounded-full px-2 py-0.5">PASO 2</span>
+                <span className="text-xs font-bold text-slate-600">Aplicación de Alícuota → Impuesto Bruto</span>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 space-y-1.5 text-xs">
+                {calcLines.map((cl, idx) => {
+                  const act = lines[idx]
+                  if (!act.activity_code || cl.taxable === 0) return null
+                  return (
+                    <div key={idx} className="flex justify-between text-slate-600">
+                      <span>
+                        {act.activity_name || act.activity_code}
+                        <span className="ml-1 text-orange-600 font-semibold">× {(cl.rate * 100).toFixed(1)}%</span>
+                      </span>
+                      <span className="font-semibold">{formatCurrency(cl.tax)}</span>
+                    </div>
+                  )
+                })}
+                <div className="flex justify-between border-t border-orange-200 pt-1.5 font-bold text-orange-700">
+                  <span>= Impuesto Bruto (determinado)</span>
+                  <span>{formatCurrency(totalTax)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* PASO 3 — Impuesto a Pagar */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold bg-primary-700 text-white rounded-full px-2 py-0.5">PASO 3</span>
+                <span className="text-xs font-bold text-slate-600">Descuento de Retenciones / Percepciones</span>
+              </div>
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Impuesto Bruto</span>
+                  <span className="font-semibold">{formatCurrency(totalTax)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>− Retenciones / percepciones sufridas</span>
+                  <span className="font-semibold text-red-500">− {formatCurrency(totalWithholdings)}</span>
+                </div>
+                <div className="flex justify-between border-t border-primary-200 pt-1.5">
+                  <span className="text-sm font-extrabold text-primary-800">= IMPUESTO A PAGAR</span>
+                  <span className="text-lg font-extrabold text-primary-700">{formatCurrency(netTax)}</span>
+                </div>
+              </div>
+              {totalWithholdings > totalTax && (
+                <p className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  ✓ Las retenciones superan el impuesto determinado — tenés un <strong>saldo a favor de {formatCurrency(totalWithholdings - totalTax)}</strong> que podés imputar al próximo período.
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Observaciones (opcional)</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 h-16 resize-none"
