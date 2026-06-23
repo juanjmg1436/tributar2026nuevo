@@ -66,9 +66,10 @@ export function AutonomosModule() {
   const { balance, debitarPago } = useBilletera()
   const [tab, setTab]           = useState<Tab>('situacion')
   const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState<string | null>(null)
-  const [success, setSuccess]   = useState<string | null>(null)
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState<string | null>(null)
+  const [success, setSuccess]       = useState<string | null>(null)
+  const [saldoInsuficiente, setSaldoInsuficiente] = useState<number | null>(null)
 
   // Perfil
   const [profile, setProfile]   = useState<AutonomosProfile | null>(null)
@@ -165,6 +166,8 @@ export function AutonomosModule() {
     if (!user) return
     const payment = payments.find(p => p.period === selectedPeriod)
     if (!payment) return
+    if (balance < payment.total_amount) { setSaldoInsuficiente(payment.total_amount - balance); return }
+    setSaldoInsuficiente(null)
     setSaving(true); setError(null)
     try {
       const db   = supabase as any
@@ -541,8 +544,18 @@ export function AutonomosModule() {
                     <StepHeader n={2} done={isPaid} label="Pagar" />
                     <p className="text-[10px] text-slate-500 mb-2">Simula el pago de los aportes.</p>
                     {!isPaid && isGenerated && (
-                      <div className="mb-2">
+                      <div className="mb-2 space-y-2">
                         <BilleteraFiscal compact />
+                        {saldoInsuficiente !== null && (
+                          <div className="p-2 bg-amber-50 border border-amber-300 rounded-lg">
+                            <p className="text-[10px] font-bold text-amber-800">
+                              Saldo insuficiente — faltan {formatCurrency(saldoInsuficiente)}
+                            </p>
+                            <p className="text-[10px] text-amber-700 mt-0.5">
+                              Mora por pago tardío: <strong>3% mensual</strong> (Art. 37 Ley 11.683)
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                     <Button size="sm" onClick={handlePay} loading={saving}

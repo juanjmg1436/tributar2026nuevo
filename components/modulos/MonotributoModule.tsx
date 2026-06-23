@@ -41,9 +41,10 @@ export function MonotributoModule() {
   const supabase = createClient()
   const { balance, debitarPago } = useBilletera()
   const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState<string | null>(null)
-  const [success, setSuccess]   = useState<string | null>(null)
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState<string | null>(null)
+  const [success, setSuccess]       = useState<string | null>(null)
+  const [saldoInsuficiente, setSaldoInsuficiente] = useState<number | null>(null)
   const [tab, setTab]           = useState<Tab>('situacion')
 
   const [categories, setCategories] = useState<MonotributoDemoCategory[]>([])
@@ -170,11 +171,13 @@ export function MonotributoModule() {
   async function handlePayQuota() {
     if (!user || !quota || !currentCat) return
     if (selPayment?.status === 'paid') { setError('Este período ya está pagado.'); return }
+    const mora = calculateMora(quota.total, selectedPeriod)
+    if (balance < mora.totalWithMora) { setSaldoInsuficiente(mora.totalWithMora - balance); return }
+    setSaldoInsuficiente(null)
     setSaving(true); setError(null); setSuccess(null)
     try {
-      const db   = supabase as any
-      const mora = calculateMora(quota.total, selectedPeriod)
-      const due  = `${selectedPeriod}-20`
+      const db  = supabase as any
+      const due = `${selectedPeriod}-20`
       const existing = await db.from('monotributo_payments')
         .select('id').eq('user_id', user.id).eq('period', selectedPeriod).maybeSingle()
 
@@ -239,6 +242,23 @@ export function MonotributoModule() {
 
       {error   && <Alert variant="error"   className="mb-1">{error}</Alert>}
       {success && <Alert variant="success" className="mb-1">{success}</Alert>}
+
+      {saldoInsuficiente !== null && (
+        <div className="mb-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl space-y-3">
+          <div className="flex items-start gap-2">
+            <span className="text-amber-500 flex-shrink-0 text-lg">⚠️</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Saldo insuficiente en Billetera ARCA</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Te faltan <strong>{formatCurrency(saldoInsuficiente)}</strong> para pagar esta cuota.
+                Si el vencimiento ya pasó sin pagar, se aplica <strong>interés resarcitorio de 3% mensual</strong> (0,1% diario) sobre el total adeudado — Art. 37 Ley 11.683.
+              </p>
+            </div>
+          </div>
+          <BilleteraFiscal compact />
+          <p className="text-xs text-amber-600">Cargá saldo y reintentá el pago.</p>
+        </div>
+      )}
 
       {/* ── WIZARD (sin perfil) ── */}
       {!profile && (

@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/Button'
 import {
   Wallet, Plus, ArrowDownLeft, ArrowUpRight, Building2,
   Smartphone, CreditCard, X, CheckCircle2, AlertTriangle,
+  Briefcase, FileText, Clock,
 } from 'lucide-react'
+import { useVencimientos } from '@/hooks/useVencimientos'
 
 type MetodoCarga = 'homebanking' | 'mercadopago' | 'debito_auto'
 
@@ -27,6 +29,10 @@ interface Props {
 
 export function BilleteraFiscal({ onClose, compact = false }: Props) {
   const { balance, movimientos, loading, cargarSaldo } = useBilletera()
+  const { vencimientos, loading: vencLoading } = useVencimientos()
+  const pendientes = vencimientos.filter(v => !v.pagado)
+  const totalPendiente = pendientes.reduce((s, v) => s + (v.monto ?? 0), 0)
+  const hayVencidos = pendientes.some(v => v.vencido)
 
   const [showModal, setShowModal]     = useState(false)
   const [metodo, setMetodo]           = useState<MetodoCarga>('homebanking')
@@ -105,6 +111,70 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
           <Plus className="w-4 h-4 mr-2" /> Cargar saldo
         </Button>
       </Card>
+
+      {/* Próximos vencimientos */}
+      {!vencLoading && pendientes.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-bold text-slate-700">Próximos vencimientos</p>
+            {totalPendiente > 0 && (
+              <span className={cn(
+                'text-xs font-bold px-2 py-0.5 rounded-full',
+                balance >= totalPendiente
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-red-100 text-red-700',
+              )}>
+                {balance >= totalPendiente
+                  ? '✓ Saldo suficiente'
+                  : `Faltan ${formatCurrency(totalPendiente - balance)}`}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {pendientes.map(v => (
+              <div key={v.id} className={cn(
+                'flex items-center gap-3 p-3 rounded-xl border',
+                v.vencido ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200',
+              )}>
+                <div className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
+                  v.tipo === 'monotributo' ? 'bg-primary-100'
+                  : v.tipo === 'autonomos'  ? 'bg-blue-100'
+                  : 'bg-amber-100',
+                )}>
+                  {v.tipo === 'monotributo' ? <Wallet    className="w-3.5 h-3.5 text-primary-600" />
+                  : v.tipo === 'autonomos'  ? <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                  : <FileText className="w-3.5 h-3.5 text-amber-600" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-700 truncate">{v.concepto}</p>
+                  <p className="text-[10px] text-slate-400">
+                    Vence: {v.dueDate.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                    {v.vencido && <span className="text-red-500 font-bold"> · VENCIDO</span>}
+                  </p>
+                </div>
+                <p className={cn(
+                  'text-sm font-black flex-shrink-0',
+                  v.vencido ? 'text-red-600' : 'text-slate-700',
+                )}>
+                  {v.monto !== null ? formatCurrency(v.monto) : '—'}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {hayVencidos && (
+            <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-xl flex gap-2 items-start">
+              <Clock className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-red-600 leading-relaxed">
+                <strong>Interés resarcitorio:</strong> obligaciones vencidas acumulan 3% mensual
+                (0,1% diario) sobre el capital adeudado — Art. 37 Ley 11.683. Cargá saldo y pagá cuanto antes.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Movimientos */}
       <div>

@@ -85,6 +85,7 @@ export function RelacionesLaboralesModule() {
   const [busy, setBusy]         = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [success, setSuccess]   = useState<string | null>(null)
+  const [saldoInsuficiente, setSaldoInsuficiente] = useState<number | null>(null)
   const [tokenInput, setTokenInput] = useState('')
   const [syncData, setSyncData] = useState<SyncData | null>(null)
   const [veps, setVeps]         = useState<VepRecord[]>([])
@@ -214,6 +215,8 @@ export function RelacionesLaboralesModule() {
 
   async function handlePayVep(vep: VepRecord) {
     if (!user) return
+    if (balance < vep.total_amount) { setSaldoInsuficiente(vep.total_amount - balance); return }
+    setSaldoInsuficiente(null)
     setBusy(true)
     const comprobante = `F931-${vep.periodo.replace('-','')}-${Math.floor(Math.random()*90000+10000)}`
     await (supabase as any).from('cargas_sociales_veps').update({
@@ -516,10 +519,15 @@ export function RelacionesLaboralesModule() {
                           </div>
                         </div>
                         <BilleteraFiscal compact />
-                        {balance < vep.total_amount && (
-                          <p className="text-[10px] text-amber-700">
-                            ⚠ Saldo insuficiente para este VEP. Cargá saldo arriba.
-                          </p>
+                        {saldoInsuficiente !== null && balance < vep.total_amount && (
+                          <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-[10px] font-bold text-red-700">
+                              Saldo insuficiente — faltan {formatCurrency(saldoInsuficiente)}
+                            </p>
+                            <p className="text-[10px] text-red-600 mt-0.5">
+                              Mora por pago tardío del F.931: <strong>interés resarcitorio 3% mensual</strong> (0,1% diario) — Art. 37 Ley 11.683
+                            </p>
+                          </div>
                         )}
                         <Button size="sm" onClick={() => handlePayVep(vep)} loading={busy}
                           className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
