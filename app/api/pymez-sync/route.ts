@@ -200,6 +200,60 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // ── 4. Resumen Monotributo: ingresos anuales para recategorización ──────────
+  if (action === 'monotributo-summary') {
+    const token = searchParams.get('token')?.trim().toUpperCase()
+    if (!token) {
+      return NextResponse.json({ error: 'Se requiere token.' }, { status: 400 })
+    }
+
+    const { data: company } = await db
+      .from('companies')
+      .select('id, name, cuit')
+      .eq('sync_token', token)
+      .maybeSingle()
+
+    if (!company) {
+      return NextResponse.json(
+        { error: 'Código incorrecto. Verificá el código en PyMEZ 360 → Mi Empresa.' },
+        { status: 403 },
+      )
+    }
+
+    const now = new Date()
+    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1)
+    const dateFrom = twelveMonthsAgo.toISOString().split('T')[0]
+
+    const { data: sales, error: salesErr } = await db
+      .from('sales')
+      .select('total, date')
+      .eq('company_id', company.id)
+      .gte('date', dateFrom)
+      .neq('status', 'anulado')
+
+    if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
+
+    const monthlyMap: Record<string, number> = {}
+    for (const s of sales ?? []) {
+      const period = s.date.substring(0, 7)
+      monthlyMap[period] = (monthlyMap[period] ?? 0) + (s.total ?? 0)
+    }
+
+    const annualTotal = Object.values(monthlyMap).reduce((sum, v) => sum + v, 0)
+    const months = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([period, total]) => ({ period, total: Math.round(total * 100) / 100 }))
+
+    return NextResponse.json({
+      ok:            true,
+      company_name:  company.name,
+      company_cuit:  company.cuit,
+      annual_total:  Math.round(annualTotal * 100) / 100,
+      invoice_count: sales?.length ?? 0,
+      months,
+    })
+  }
+
   return NextResponse.json({ error: 'action no reconocida' }, { status: 400 })
 }
 

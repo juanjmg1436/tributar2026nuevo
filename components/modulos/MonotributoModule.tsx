@@ -51,6 +51,12 @@ export function MonotributoModule() {
   const [payments, setPayments]     = useState<MonotributoPayment[]>([])
   const [annualIncome, setAnnualIncome] = useState(0)
 
+  // PyMEZ 360 sync — recategorización
+  const [pymezToken, setPymezToken]     = useState('')
+  const [pymezSyncing, setPymezSyncing] = useState(false)
+  const [pymezData, setPymezData]       = useState<{ annual_total: number; company_name: string; months: {period:string;total:number}[] } | null>(null)
+  const [pymezError, setPymezError]     = useState<string | null>(null)
+
   // Wizard
   const [formActivityType, setFormActivityType] = useState<'servicios' | 'bienes'>('servicios')
   const [formAnnualRevenue, setFormAnnualRevenue] = useState('')
@@ -131,6 +137,21 @@ export function MonotributoModule() {
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
     finally { setSaving(false) }
+  }
+
+  async function handlePymezRecatSync() {
+    if (!pymezToken.trim()) return
+    setPymezSyncing(true); setPymezError(null); setPymezData(null)
+    try {
+      const res = await fetch(`/api/pymez-sync?action=monotributo-summary&token=${encodeURIComponent(pymezToken.trim())}`)
+      const json = await res.json()
+      if (!res.ok || !json.ok) throw new Error(json.error ?? 'Error al conectar con PyMEZ 360')
+      setPymezData(json)
+    } catch (e) {
+      setPymezError(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setPymezSyncing(false)
+    }
   }
 
   async function handleRecategorize(newCode: string) {
@@ -399,6 +420,51 @@ export function MonotributoModule() {
                 <p className="text-[10px] text-slate-400 mt-3 text-center">Vencimiento: día 20 de cada mes</p>
               </Card>
             </div>
+
+            {/* PyMEZ 360 sync para recategorización */}
+            <Card padding="md" className="border-violet-200 bg-violet-50/40">
+              <p className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mb-2">Verificar con PyMEZ 360</p>
+              <p className="text-xs text-slate-600 mb-3">
+                Si usás PyMEZ 360 para registrar tu facturación, podés importar el ingreso anual real para verificar si tu categoría sigue siendo correcta.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={pymezToken}
+                  onChange={e => setPymezToken(e.target.value.toUpperCase())}
+                  placeholder="Código PyMEZ (ej: AB12CD)"
+                  className="flex-1 border border-violet-200 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                />
+                <button
+                  onClick={handlePymezRecatSync}
+                  disabled={pymezSyncing || !pymezToken.trim()}
+                  className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  {pymezSyncing ? '…' : 'Importar'}
+                </button>
+              </div>
+              {pymezError && <p className="text-xs text-red-600 mt-2">{pymezError}</p>}
+              {pymezData && (
+                <div className="mt-3 bg-white rounded-xl border border-violet-100 p-3">
+                  <p className="text-xs font-semibold text-violet-700 mb-1">{pymezData.company_name} — últimos 12 meses</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-600">Ingreso anual real</span>
+                    <span className="text-sm font-black text-slate-800">{formatCurrency(pymezData.annual_total)}</span>
+                  </div>
+                  <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full',
+                        pymezData.annual_total >= currentCat.max_annual_income ? 'bg-red-500' :
+                        pymezData.annual_total >= currentCat.max_annual_income * 0.8 ? 'bg-amber-500' : 'bg-emerald-500')}
+                      style={{ width: `${Math.min((pymezData.annual_total / currentCat.max_annual_income) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {Math.round((pymezData.annual_total / currentCat.max_annual_income) * 100)}% del límite Cat. {profile.category_code}
+                    {pymezData.annual_total > currentCat.max_annual_income && ' · ⚠️ Superás el límite — recategorizá'}
+                  </p>
+                </div>
+              )}
+            </Card>
 
             {/* Barra de facturación */}
             <Card padding="md">
