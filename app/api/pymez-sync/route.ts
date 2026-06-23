@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // ── 3. Resumen IIBB: base imponible desde mayor de contabilidad (cuentas de ingreso) ──
+  // ── 3. Resumen IIBB: Base imponible = Ventas brutas (con IVA) − IVA Débito Fiscal ──
   if (action === 'iibb-summary') {
     const token  = searchParams.get('token')?.trim().toUpperCase()
     const period = searchParams.get('period')
@@ -174,88 +174,43 @@ export async function GET(req: NextRequest) {
     const dateFrom = `${period}-01`
     const dateTo   = new Date(year, month, 0).toISOString().split('T')[0]
 
-    // ── Paso 1: asientos del período para esta empresa ────────────────────────
-    const { data: entries, error: entryErr } = await db
-      .from('journal_entries')
-      .select('id')
+    const { data: sales, error: salesErr } = await db
+      .from('sales')
+      .select('total, iva_rate, status')
       .eq('company_id', company.id)
       .gte('date', dateFrom)
       .lte('date', dateTo)
+      .neq('status', 'anulado')
 
-    if (entryErr) return NextResponse.json({ error: entryErr.message }, { status: 500 })
+    if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
 
-    const entryIds = (entries ?? []).map((e: any) => e.id)
-
-    if (entryIds.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        company_name:    company.name,
-        company_cuit:    company.cuit,
-        period,
-        total_sales_net: 0,
-        line_count:      0,
-        source:          'mayor_contabilidad',
-        message:         'Sin asientos contables en este período.',
-      })
+    // En PyMEZ 360, sales.total es el precio BASE sin IVA.
+    // iva_rate puede ser decimal (0.21) o porcentaje entero (21), se normaliza abajo.
+    // Base IIBB = Ventas brutas (base + IVA) − IVA Débito Fiscal = sales.total
+    // Fórmula explícita para el alumno:
+    //   totalBruto = SUM(total * (1 + iva_rate))
+    //   ivaDebito  = SUM(total * iva_rate)
+    //   baseIIBB   = totalBruto − ivaDebito = SUM(total)
+    let totalBruto = 0
+    let ivaDebito  = 0
+    for (const s of sales ?? []) {
+      const base = s.total ?? 0
+      // normalizar: si iva_rate >= 1 es porcentaje entero (e.g. 21 → 0.21)
+      const rate = (s.iva_rate ?? 0) >= 1 ? (s.iva_rate / 100) : (s.iva_rate ?? 0)
+      totalBruto += base * (1 + rate)
+      ivaDebito  += base * rate
     }
-
-    // ── Paso 2: cuentas de ingreso del plan de cuentas ────────────────────────
-    const { data: incomeAccts, error: acctErr } = await db
-      .from('chart_of_accounts')
-      .select('id, name')
-      .eq('company_id', company.id)
-      .or('account_type.eq.ingreso,account_type.eq.ingresos,account_type.eq.income')
-
-    if (acctErr) return NextResponse.json({ error: acctErr.message }, { status: 500 })
-
-    let accountIds: string[] = (incomeAccts ?? []).map((a: any) => a.id)
-
-    // Fallback: si no hay cuentas por account_type, buscar por nombre que contenga "venta"
-    if (accountIds.length === 0) {
-      const { data: fallbackAccts } = await db
-        .from('chart_of_accounts')
-        .select('id, name')
-        .eq('company_id', company.id)
-        .ilike('name', '%venta%')
-      accountIds = (fallbackAccts ?? []).map((a: any) => a.id)
-    }
-
-    if (accountIds.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        company_name:    company.name,
-        company_cuit:    company.cuit,
-        period,
-        total_sales_net: 0,
-        line_count:      0,
-        source:          'mayor_contabilidad',
-        message:         'No se encontraron cuentas de ingreso en el plan de cuentas. Creá una cuenta de tipo "Ingreso" o con nombre "Ventas".',
-      })
-    }
-
-    // ── Paso 3: sumar líneas del mayor (crédito − débito en cuentas de ingreso) ─
-    const { data: lines, error: lineErr } = await db
-      .from('journal_entry_lines')
-      .select('credit, debit')
-      .in('entry_id', entryIds)
-      .in('account_id', accountIds)
-
-    if (lineErr) return NextResponse.json({ error: lineErr.message }, { status: 500 })
-
-    // Las cuentas de ingreso incrementan con CRÉDITO y disminuyen con DÉBITO
-    const baseImponible = (lines ?? []).reduce(
-      (sum: number, l: any) => sum + (l.credit ?? 0) - (l.debit ?? 0),
-      0,
-    )
+    const baseImponible = totalBruto - ivaDebito // = SUM(sales.total)
 
     return NextResponse.json({
-      ok: true,
-      company_name:    company.name,
-      company_cuit:    company.cuit,
+      ok:                true,
+      company_name:      company.name,
+      company_cuit:      company.cuit,
       period,
-      total_sales_net: Math.round(Math.max(0, baseImponible) * 100) / 100,
-      line_count:      (lines ?? []).length,
-      source:          'mayor_contabilidad',
+      total_bruto:       Math.round(totalBruto  * 100) / 100,
+      iva_debito_fiscal: Math.round(ivaDebito   * 100) / 100,
+      total_sales_net:   Math.round(Math.max(0, baseImponible) * 100) / 100,
+      invoice_count:     (sales ?? []).length,
     })
   }
 

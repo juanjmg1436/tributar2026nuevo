@@ -26,12 +26,12 @@ interface ActivityLine {
 }
 
 interface PymezData {
-  company_name:    string
-  company_cuit:    string
-  total_sales_net: number
-  line_count:      number
-  source:          string
-  message?:        string
+  company_name:      string
+  company_cuit:      string
+  total_bruto:       number
+  iva_debito_fiscal: number
+  total_sales_net:   number
+  invoice_count:     number
 }
 
 export default function NuevaDDJJPage() {
@@ -296,27 +296,26 @@ export default function NuevaDDJJPage() {
               <div className="mt-3 bg-white border border-emerald-200 rounded-xl p-3 flex items-start gap-3">
                 <Building2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-emerald-800">{pymezData.company_name}</p>
-                    <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
-                      Mayor Contable
-                    </span>
+                  <p className="text-sm font-bold text-emerald-800">{pymezData.company_name}</p>
+                  <p className="text-xs text-slate-500 mb-2">CUIT {pymezData.company_cuit} · {pymezData.invoice_count} comprobantes</p>
+                  {/* Desglose pedagógico: bruto − IVA = base imponible */}
+                  <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Ventas brutas (con IVA)</span>
+                      <span className="font-semibold">{formatCurrency(pymezData.total_bruto)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500">
+                      <span>− IVA Débito Fiscal</span>
+                      <span className="font-semibold text-red-500">− {formatCurrency(pymezData.iva_debito_fiscal)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-emerald-700">
+                      <span>= Base imponible IIBB</span>
+                      <span>{formatCurrency(pymezData.total_sales_net)}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500">CUIT {pymezData.company_cuit}</p>
-                  <div className="mt-1.5 flex gap-4 text-xs">
-                    <span className="text-slate-600">Líneas de mayor: <strong>{pymezData.line_count}</strong></span>
-                    <span className="text-slate-600">Ingresos netos: <strong className="text-emerald-700">{formatCurrency(pymezData.total_sales_net)}</strong></span>
-                  </div>
-                  {pymezData.message && (
-                    <p className="mt-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                      ⚠ {pymezData.message}
-                    </p>
-                  )}
-                  {!pymezData.message && (
-                    <p className="mt-1.5 text-[10px] text-emerald-600 font-semibold">
-                      ✓ Base imponible desde cuentas de ingreso del mayor contable — pre-cargada en actividad principal ({taxpayer.primary_activity_code})
-                    </p>
-                  )}
+                  <p className="mt-1.5 text-[10px] text-emerald-600 font-semibold">
+                    ✓ Pre-cargada en actividad principal ({taxpayer.primary_activity_code})
+                  </p>
                 </div>
               </div>
             )}
