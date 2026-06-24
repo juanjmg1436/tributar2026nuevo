@@ -195,8 +195,8 @@ export function useRegime(): RegimeInfo {
     }
   }
 
-  // ── Responsable Inscripto (Persona Humana con Régimen General activo) ──────────
-  if (isRegimeGeneral || (hasAnyActiveRegime && !isMonotributista)) {
+  // ── Responsable Inscripto (solo cuando REGIMEN_GENERAL está explícitamente activo) ──
+  if (isRegimeGeneral) {
     return {
       regime: 'responsable_inscripto',
       label: 'Responsable Inscripto',
