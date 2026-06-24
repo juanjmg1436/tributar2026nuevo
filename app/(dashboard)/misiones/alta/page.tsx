@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { useUser } from '@/hooks/useUser'
 import { MISIONES_DEPARTMENTS, IIBB_ACTIVITIES, IIBB_REGIMES } from '@/lib/constants/misiones'
-import { Building2, User, MapPin, FileText, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle } from 'lucide-react'
+import { Building2, User, MapPin, FileText, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, Info } from 'lucide-react'
 
 // ── Schemas por paso ─────────────────────────────────────────────────────────
 const step1Schema = z.object({
@@ -151,12 +151,52 @@ export default function AltaProvincialPage() {
   return (
     <PageContainer title="Alta Provincial — ATM Misiones" subtitle="Inscripción como contribuyente provincial (simulación educativa)">
 
-      {/* Banner */}
-      <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 flex gap-2 items-center">
+      {/* Banner simulador */}
+      <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
         <p className="text-xs text-red-700 font-medium">
           SIMULADOR DIDÁCTICO — DATOS DE PRUEBA — SIN VALIDEZ FISCAL NI LEGAL
         </p>
+      </div>
+
+      {/* Aviso: ATM es organismo provincial independiente de ARCA */}
+      <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold text-blue-800 mb-1">
+            ATM Misiones es un organismo provincial — distinto e independiente de ARCA / AFIP
+          </p>
+          <div className="text-xs text-blue-700 space-y-1 leading-relaxed">
+            <p>
+              La <strong>Administración Tributaria de Misiones (ATM)</strong> es el fisco provincial,
+              separado del fisco nacional (ARCA, ex-AFIP). Tu usuario y clave de ARCA <strong>no sirven</strong> aquí:
+              debés crear una cuenta propia en el sistema de ATM y realizar la inscripción como contribuyente de
+              Ingresos Brutos (IIBB) de forma independiente.
+            </p>
+            <div className="bg-blue-100 rounded-lg p-2 mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
+              <div className="flex items-start gap-1">
+                <span className="text-blue-400">✗</span>
+                <span>Cuenta ARCA / AFIP</span>
+              </div>
+              <div className="flex items-start gap-1">
+                <span className="text-blue-500">✓</span>
+                <span>Cuenta ATM Misiones (atm.misiones.gov.ar)</span>
+              </div>
+              <div className="flex items-start gap-1">
+                <span className="text-blue-400">✗</span>
+                <span>CUIT como clave fiscal ARCA</span>
+              </div>
+              <div className="flex items-start gap-1">
+                <span className="text-blue-500">✓</span>
+                <span>N° contribuyente IIBB asignado por ATM</span>
+              </div>
+            </div>
+            <p className="text-blue-500 italic text-[11px] mt-1">
+              En el simulador completás este formulario de alta provincial con tus datos de prueba. En la realidad,
+              el trámite se hace en <strong>atm.misiones.gov.ar</strong> con clave ATM propia.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Steps indicator */}

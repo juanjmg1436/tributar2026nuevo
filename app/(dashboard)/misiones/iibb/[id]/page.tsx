@@ -178,7 +178,7 @@ export default function DDJJDetailPage() {
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
           >
-            <Printer className="w-4 h-4" /> Imprimir
+            <Printer className="w-4 h-4" /> Imprimir / Exportar PDF
           </button>
         </div>
       </div>
@@ -238,10 +238,26 @@ export default function DDJJDetailPage() {
       {/* ── Documento imprimible ─────────────────────────────────────────────── */}
 
       {/* Encabezado solo visible al imprimir */}
-      <div className="hidden print:block mb-6 text-center border-b-2 border-slate-300 pb-4">
-        <p className="text-xl font-bold uppercase tracking-wide">Administración Tributaria de Misiones</p>
-        <p className="text-base font-semibold mt-1">DECLARACIÓN JURADA — INGRESOS BRUTOS</p>
-        <p className="text-xs text-gray-500 mt-1 italic">SIMULACIÓN EDUCATIVA — SIN VALIDEZ FISCAL NI LEGAL</p>
+      <div className="hidden print:block mb-6 border-b-2 border-slate-800 pb-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-lg font-bold uppercase tracking-wide">Administración Tributaria de Misiones</p>
+            <p className="text-sm font-semibold text-slate-600 mt-0.5">Ingresos Brutos — Declaración Jurada Mensual</p>
+            <p className="text-xs text-gray-400 mt-1 italic">SIMULACIÓN EDUCATIVA · SIN VALIDEZ FISCAL NI LEGAL · TRIBUT.AR</p>
+          </div>
+          <div className="text-right text-xs text-slate-600">
+            <p><span className="font-semibold">Período:</span> {ddjj.period_label}</p>
+            <p><span className="font-semibold">Estado:</span> {statusLabels[ddjj.status] ?? ddjj.status}</p>
+            <p><span className="font-semibold">Vencimiento:</span> {formatDate(ddjj.due_date)}</p>
+            {taxpayer && (
+              <>
+                <p className="mt-1"><span className="font-semibold">Contribuyente:</span> {taxpayer.entity_name}</p>
+                <p><span className="font-semibold">CUIT:</span> {taxpayer.cuit}</p>
+                {taxpayer.iibb_number && <p><span className="font-semibold">N° IIBB:</span> {taxpayer.iibb_number}</p>}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <Card padding="none" className="mb-4 overflow-hidden">
@@ -405,8 +421,9 @@ export default function DDJJDetailPage() {
         <button
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+          title="Se abre el diálogo de impresión. Elegí 'Guardar como PDF' en destino."
         >
-          <Printer className="w-4 h-4" /> Guardar / Imprimir PDF
+          <Printer className="w-4 h-4" /> Exportar PDF / Imprimir
         </button>
       </div>
 

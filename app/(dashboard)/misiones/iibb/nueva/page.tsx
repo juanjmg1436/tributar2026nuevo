@@ -61,6 +61,11 @@ export default function NuevaDDJJPage() {
   const [pymezData, setPymezData]     = useState<PymezData | null>(null)
   const [pymezError, setPymezError]   = useState<string | null>(null)
 
+  // Normaliza CUIT eliminando guiones para comparación
+  function normalizeCuit(cuit: string | null | undefined): string {
+    return (cuit ?? '').replace(/-/g, '').trim()
+  }
+
   async function handlePymezImport() {
     if (!pymezToken.trim() || !period) return
     setPymezSyncing(true)
@@ -369,11 +374,29 @@ export default function NuevaDDJJPage() {
               </p>
             )}
 
-            {pymezData && (
-              <div className="mt-3 bg-white border border-emerald-200 rounded-xl p-3 flex items-start gap-3">
-                <Building2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            {pymezData && (() => {
+              const cuitPymez = normalizeCuit(pymezData.company_cuit)
+              const cuitTributar = normalizeCuit(taxpayer?.cuit)
+              const cuitMismatch = cuitPymez && cuitTributar && cuitPymez !== cuitTributar
+              return (
+              <div className="mt-3 space-y-2">
+                {cuitMismatch && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold mb-0.5">Incompatibilidad de CUIT — verificá los datos</p>
+                      <p>
+                        El CUIT de la empresa en <strong>PyMEZ 360</strong> es <strong>{pymezData.company_cuit}</strong>,
+                        pero tu alta provincial en <strong>TRIBUT.AR</strong> registra el CUIT <strong>{taxpayer?.cuit}</strong>.
+                        Asegurate de que estás usando el código de sincronización de la empresa correcta.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className={`bg-white border rounded-xl p-3 flex items-start gap-3 ${cuitMismatch ? 'border-amber-200' : 'border-emerald-200'}`}>
+                <Building2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${cuitMismatch ? 'text-amber-500' : 'text-emerald-600'}`} />
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-emerald-800">{pymezData.company_name}</p>
+                  <p className={`text-sm font-bold ${cuitMismatch ? 'text-amber-800' : 'text-emerald-800'}`}>{pymezData.company_name}</p>
                   <p className="text-xs text-slate-500 mb-2">CUIT {pymezData.company_cuit} · {pymezData.invoice_count} comprobantes</p>
                   {regime.regime === 'monotributista' ? (
                     /* Monotributista: Factura C, precio único = base IIBB (sin IVA a descontar) */
@@ -412,7 +435,9 @@ export default function NuevaDDJJPage() {
                   </p>
                 </div>
               </div>
-            )}
+              </div>
+            )
+            })()}
           </Card>
 
           {/* Actividades */}

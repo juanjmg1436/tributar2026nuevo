@@ -11,7 +11,7 @@ import { useUser } from '@/hooks/useUser'
 import { useProvincialTaxpayer } from '@/hooks/useProvincialTaxpayer'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { formatPeriodLabel } from '@/lib/constants/misiones'
-import { FileText, Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle } from 'lucide-react'
+import { FileText, Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, Printer, CreditCard, Link2 } from 'lucide-react'
 import type { ProvIIBBDDJJ } from '@/types/provincial'
 
 type FilterStatus = 'all' | 'draft' | 'submitted' | 'paid' | 'overdue'
@@ -33,7 +33,7 @@ export default function IIBBPage() {
     setLoading(true)
     const { data } = await (supabase as any)
       .from('prov_iibb_ddjj')
-      .select('*')
+      .select('*, origin, submitted_at')
       .eq('user_id', user!.id)
       .order('period', { ascending: false })
     setDDJJs(data || [])
@@ -140,38 +140,65 @@ export default function IIBBPage() {
             <div className="space-y-3">
               {filtered.map(d => {
                 const sc = statusConfig[d.status] || statusConfig.draft
+                const origin = (d as any).origin as 'manual' | 'pymez360' | undefined
+                const submittedAt = (d as any).submitted_at as string | undefined
                 return (
                   <Card key={d.id} padding="none" className="overflow-hidden">
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3 flex-wrap">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <p className="font-semibold text-slate-800 text-sm">{d.period_label}</p>
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${sc.color}`}>
                               {sc.icon} {sc.label}
                             </span>
+                            {origin === 'pymez360' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-violet-200 bg-violet-50 text-violet-600 font-medium">
+                                <Link2 className="w-2.5 h-2.5" /> PyMEZ 360
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-slate-500">Vencimiento: {formatDate(d.due_date)}</p>
-                          <p className="text-xs text-slate-500">
-                            Ingresos gravados: {formatCurrency(d.total_taxable_revenue)} · Retenciones: {formatCurrency(d.total_withholdings)}
-                          </p>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-slate-500">Vencimiento: {formatDate(d.due_date)}</p>
+                            {submittedAt && (
+                              <p className="text-xs text-slate-500">Presentada: {formatDate(submittedAt)}</p>
+                            )}
+                            <p className="text-xs text-slate-500">
+                              Base gravada: {formatCurrency(d.total_taxable_revenue)}
+                              {d.total_withholdings > 0 && ` · Retenciones: ${formatCurrency(d.total_withholdings)}`}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-slate-800">Impuesto neto:</p>
-                          <p className="text-lg font-bold text-primary-700">{formatCurrency(d.net_tax)}</p>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-slate-400 font-medium">Impuesto a pagar</p>
+                          <p className="text-xl font-bold text-primary-700">{formatCurrency(d.net_tax)}</p>
+                          {d.status === 'paid' && (
+                            <p className="text-xs text-emerald-600 font-semibold mt-0.5">✓ Pagada</p>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2 mt-3 flex-wrap">
+                      <div className="flex gap-2 mt-3 flex-wrap border-t border-slate-100 pt-3">
                         <a href={`/misiones/iibb/${d.id}`}>
-                          <Button size="sm" variant="outline">Ver detalle</Button>
+                          <Button size="sm" variant="outline">Ver / Imprimir</Button>
                         </a>
                         {(d.status === 'draft' || d.status === 'overdue') && (
-                          <Button size="sm" variant="outline" onClick={() => markSubmitted(d.id)}>Presentar DDJJ</Button>
-                        )}
-                        {(d.status === 'draft' || d.status === 'overdue' || d.status === 'submitted') && (
-                          <Button size="sm" onClick={() => markPaid(d.id)}>
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Simular pago
+                          <Button size="sm" variant="outline" onClick={() => markSubmitted(d.id)}>
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Presentar DDJJ
                           </Button>
+                        )}
+                        {(d.status === 'draft' || d.status === 'overdue' || d.status === 'submitted') && d.net_tax > 0 && (
+                          <a href={`/misiones/iibb/${d.id}`}>
+                            <Button size="sm">
+                              <CreditCard className="w-3.5 h-3.5 mr-1" /> Pagar
+                            </Button>
+                          </a>
+                        )}
+                        {d.status === 'paid' && (
+                          <a href={`/misiones/iibb/${d.id}`}>
+                            <Button size="sm" variant="outline">
+                              <Printer className="w-3.5 h-3.5 mr-1" /> Imprimir comprobante
+                            </Button>
+                          </a>
                         )}
                       </div>
                     </div>
