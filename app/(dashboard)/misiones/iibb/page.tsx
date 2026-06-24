@@ -33,7 +33,7 @@ export default function IIBBPage() {
     setLoading(true)
     const { data } = await (supabase as any)
       .from('prov_iibb_ddjj')
-      .select('*, origin, submitted_at')
+      .select('*')
       .eq('user_id', user!.id)
       .order('period', { ascending: false })
     setDDJJs(data || [])
@@ -154,7 +154,8 @@ export default function IIBBPage() {
                             </span>
                             {origin === 'pymez360' && (
                               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-violet-200 bg-violet-50 text-violet-600 font-medium">
-                                <Link2 className="w-2.5 h-2.5" /> PyMEZ 360
+                                <Link2 className="w-2.5 h-2.5" />
+                                {(d as any).pymez_company_name ? `PyMEZ: ${(d as any).pymez_company_name}` : 'PyMEZ 360'}
                               </span>
                             )}
                           </div>
@@ -179,24 +180,24 @@ export default function IIBBPage() {
                       </div>
                       <div className="flex gap-2 mt-3 flex-wrap border-t border-slate-100 pt-3">
                         <a href={`/misiones/iibb/${d.id}`}>
-                          <Button size="sm" variant="outline">Ver / Imprimir</Button>
+                          <Button size="sm" variant="outline">
+                            <Printer className="w-3.5 h-3.5 mr-1" /> Ver / Imprimir
+                          </Button>
                         </a>
                         {(d.status === 'draft' || d.status === 'overdue') && (
                           <Button size="sm" variant="outline" onClick={() => markSubmitted(d.id)}>
                             <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Presentar DDJJ
                           </Button>
                         )}
-                        {(d.status === 'draft' || d.status === 'overdue' || d.status === 'submitted') && d.net_tax > 0 && (
-                          <a href={`/misiones/iibb/${d.id}`}>
-                            <Button size="sm">
-                              <CreditCard className="w-3.5 h-3.5 mr-1" /> Pagar
-                            </Button>
-                          </a>
+                        {(d.status === 'draft' || d.status === 'overdue' || d.status === 'submitted') && (
+                          <Button size="sm" onClick={() => markPaid(d.id)}>
+                            <CreditCard className="w-3.5 h-3.5 mr-1" /> Simular pago
+                          </Button>
                         )}
-                        {d.status === 'paid' && (
+                        {d.status !== 'paid' && d.net_tax > 0 && (
                           <a href={`/misiones/iibb/${d.id}`}>
                             <Button size="sm" variant="outline">
-                              <Printer className="w-3.5 h-3.5 mr-1" /> Imprimir comprobante
+                              Pagar con Billetera →
                             </Button>
                           </a>
                         )}

@@ -279,6 +279,11 @@ export default function DDJJDetailPage() {
             <p className="text-xs text-slate-400">Contribuyente</p>
             <p className="font-medium text-slate-800">{taxpayer?.entity_name ?? '—'}</p>
             <p className="text-xs text-slate-500">CUIT: {taxpayer?.cuit ?? '—'}</p>
+            {(ddjj as any).pymez_company_name && (
+              <p className="text-xs text-violet-600 mt-0.5">
+                ↔ Sincronizado: {(ddjj as any).pymez_company_name} (PyMEZ 360)
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-slate-400">N° IIBB</p>

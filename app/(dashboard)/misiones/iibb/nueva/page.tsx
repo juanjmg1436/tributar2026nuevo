@@ -56,21 +56,18 @@ export default function NuevaDDJJPage() {
   const [origin, setOrigin]           = useState<'manual' | 'pymez360'>('manual')
 
   // ── PyMEZ 360 import ────────────────────────────────────────────────────────
-  const [pymezToken, setPymezToken]   = useState('')
-  const [pymezSyncing, setPymezSyncing] = useState(false)
-  const [pymezData, setPymezData]     = useState<PymezData | null>(null)
-  const [pymezError, setPymezError]   = useState<string | null>(null)
-
-  // Normaliza CUIT eliminando guiones para comparación
-  function normalizeCuit(cuit: string | null | undefined): string {
-    return (cuit ?? '').replace(/-/g, '').trim()
-  }
+  const [pymezToken, setPymezToken]       = useState('')
+  const [pymezSyncing, setPymezSyncing]   = useState(false)
+  const [pymezData, setPymezData]         = useState<PymezData | null>(null)
+  const [pymezError, setPymezError]       = useState<string | null>(null)
+  const [cuitMismatch, setCuitMismatch]   = useState(false)
 
   async function handlePymezImport() {
     if (!pymezToken.trim() || !period) return
     setPymezSyncing(true)
     setPymezError(null)
     setPymezData(null)
+    setCuitMismatch(false)
 
     try {
       const res  = await fetch(
@@ -78,6 +75,13 @@ export default function NuevaDDJJPage() {
       )
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error al importar')
+
+      // Validar compatibilidad de CUIT
+      const normCuitPymez    = (json.company_cuit ?? '').replace(/-/g, '').trim()
+      const normCuitTributar = (taxpayer?.cuit ?? '').replace(/-/g, '').trim()
+      if (normCuitPymez && normCuitTributar && normCuitPymez !== normCuitTributar) {
+        setCuitMismatch(true)
+      }
 
       setPymezData(json)
 
@@ -171,6 +175,8 @@ export default function NuevaDDJJPage() {
         submitted_at:          submitStatus === 'submitted' ? new Date().toISOString() : null,
         notes:                 notes || null,
         origin,
+        pymez_token:           origin === 'pymez360' ? pymezToken.trim().toUpperCase() : null,
+        pymez_company_name:    origin === 'pymez360' ? (pymezData?.company_name ?? null) : null,
       }).select().single()
 
       if (ddjjErr) throw new Error(ddjjErr.message)
@@ -374,32 +380,27 @@ export default function NuevaDDJJPage() {
               </p>
             )}
 
-            {pymezData && (() => {
-              const cuitPymez = normalizeCuit(pymezData.company_cuit)
-              const cuitTributar = normalizeCuit(taxpayer?.cuit)
-              const cuitMismatch = cuitPymez && cuitTributar && cuitPymez !== cuitTributar
-              return (
-              <div className="mt-3 space-y-2">
-                {cuitMismatch && (
-                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold mb-0.5">Incompatibilidad de CUIT — verificá los datos</p>
-                      <p>
-                        El CUIT de la empresa en <strong>PyMEZ 360</strong> es <strong>{pymezData.company_cuit}</strong>,
-                        pero tu alta provincial en <strong>TRIBUT.AR</strong> registra el CUIT <strong>{taxpayer?.cuit}</strong>.
-                        Asegurate de que estás usando el código de sincronización de la empresa correcta.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <div className={`bg-white border rounded-xl p-3 flex items-start gap-3 ${cuitMismatch ? 'border-amber-200' : 'border-emerald-200'}`}>
+            {cuitMismatch && pymezData && (
+              <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold mb-0.5">Incompatibilidad de CUIT — verificá los datos</p>
+                  <p>
+                    El CUIT de la empresa en <strong>PyMEZ 360</strong> es <strong>{pymezData.company_cuit}</strong>,
+                    pero tu alta en <strong>ATM / TRIBUT.AR</strong> registra el CUIT <strong>{taxpayer?.cuit}</strong>.
+                    Verificá que estás usando el código de la empresa correcta.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {pymezData && (
+              <div className={`mt-3 bg-white border rounded-xl p-3 flex items-start gap-3 ${cuitMismatch ? 'border-amber-200' : 'border-emerald-200'}`}>
                 <Building2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${cuitMismatch ? 'text-amber-500' : 'text-emerald-600'}`} />
                 <div className="flex-1">
                   <p className={`text-sm font-bold ${cuitMismatch ? 'text-amber-800' : 'text-emerald-800'}`}>{pymezData.company_name}</p>
-                  <p className="text-xs text-slate-500 mb-2">CUIT {pymezData.company_cuit} · {pymezData.invoice_count} comprobantes</p>
+                  <p className="text-xs text-slate-500 mb-2">CUIT {pymezData.company_cuit} · {pymezData.invoice_count} comprobantes · Código: {pymezToken.toUpperCase()}</p>
                   {regime.regime === 'monotributista' ? (
-                    /* Monotributista: Factura C, precio único = base IIBB (sin IVA a descontar) */
                     <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
                       <div className="flex justify-between text-slate-600">
                         <span>Total facturado (Factura C)</span>
@@ -409,12 +410,9 @@ export default function NuevaDDJJPage() {
                         <span>= Base imponible IIBB</span>
                         <span>{formatCurrency(pymezData.total_sales_net)}</span>
                       </div>
-                      <p className="text-[10px] text-slate-400 italic">
-                        Factura C no desglosa IVA — el total facturado es la base imponible directa.
-                      </p>
+                      <p className="text-[10px] text-slate-400 italic">Factura C no desglosa IVA — el total facturado es la base imponible directa.</p>
                     </div>
                   ) : (
-                    /* RI / Autónomo: Factura A o B — base = neto sin IVA */
                     <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
                       <div className="flex justify-between text-slate-600">
                         <span>Ventas brutas (con IVA)</span>
@@ -431,13 +429,11 @@ export default function NuevaDDJJPage() {
                     </div>
                   )}
                   <p className="mt-1.5 text-[10px] text-emerald-600 font-semibold">
-                    ✓ Pre-cargada en actividad principal ({taxpayer.primary_activity_code})
+                    ✓ Pre-cargada en actividad principal ({taxpayer?.primary_activity_code}) · Sincronización se guardará con la DDJJ
                   </p>
                 </div>
               </div>
-              </div>
-            )
-            })()}
+            )}
           </Card>
 
           {/* Actividades */}
