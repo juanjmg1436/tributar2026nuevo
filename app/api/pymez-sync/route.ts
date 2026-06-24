@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
 
     const { data: company } = await db
       .from('companies')
-      .select('id, name, cuit')
+      .select('id, name, cuit, microemprendimiento_mode')
       .eq('sync_token', token)
       .maybeSingle()
 
