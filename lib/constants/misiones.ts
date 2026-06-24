@@ -469,6 +469,36 @@ export const PRACTICE_CASES: PracticeCase[] = [
   },
 ]
 
+// ── Régimen Simplificado IIBB (RS-IIBB) — Proyecto legislativo, NO VIGENTE ───
+// Fuente: proyecto presentado en Cámara de Representantes de Misiones (abril 2026)
+// Estado: en análisis — NO aprobado como ley al 23/06/2026
+// Aplica solo a: monotributistas con actividad EXCLUSIVA en Misiones (no CM)
+// La cuota reemplaza la DDJJ mensual y exime de retenciones bancarias
+export const RS_IIBB_PROYECTO = {
+  vigente: false,
+  descripcion:
+    'Régimen Simplificado de IIBB (RS-IIBB): proyecto que reemplaza la DDJJ mensual por una cuota fija alineada a las categorías del Monotributo nacional. En análisis legislativo. NO aprobado aún.',
+  // Cuotas de referencia indicativas (proyecto, sujetas a modificación)
+  cuotasPorCategoria: [
+    { categoria: 'A', cuotaMensual: 9941 },
+    { categoria: 'B', cuotaMensual: 14912 },
+    { categoria: 'C', cuotaMensual: 19882 },
+    { categoria: 'D', cuotaMensual: 24853 },
+    { categoria: 'E', cuotaMensual: 29823 },
+    { categoria: 'F', cuotaMensual: 34794 },
+    { categoria: 'G', cuotaMensual: 39764 },
+    { categoria: 'H', cuotaMensual: 44735 },
+  ] as { categoria: string; cuotaMensual: number }[],
+}
+
+// ── Nota: Misiones NO adhirió al Monotributo Unificado ───────────────────────
+// El Monotributo Unificado (ARCA + provincias) cubre: CABA, Buenos Aires, Córdoba,
+// Entre Ríos, Jujuy, Mendoza, Neuquén, Río Negro, Salta, San Juan, Santa Cruz,
+// Chaco, Catamarca, Tierra del Fuego. Misiones NO está incluida (junio 2026).
+// Los monotributistas misioneros deben inscribirse en ATM Misiones y pagar IIBB
+// por separado bajo el régimen general local o Convenio Multilateral.
+export const MISIONES_MONOTRIBUTO_UNIFICADO = false
+
 // ── Textos del módulo ────────────────────────────────────────────────────────
 export const MODULE_INFO = {
   name: 'ATM Misiones Simulado',

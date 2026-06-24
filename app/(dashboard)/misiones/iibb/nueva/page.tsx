@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { useProvincialTaxpayer } from '@/hooks/useProvincialTaxpayer'
 import { useRegime } from '@/hooks/useRegime'
-import { IIBB_ACTIVITIES, calcIIBBDueDate, formatPeriodLabel } from '@/lib/constants/misiones'
+import { IIBB_ACTIVITIES, calcIIBBDueDate, formatPeriodLabel, RS_IIBB_PROYECTO } from '@/lib/constants/misiones'
 import { formatCurrency } from '@/lib/utils'
 import {
   Plus, Trash2, Calculator, CheckCircle2, AlertTriangle,
@@ -226,22 +226,56 @@ export default function NuevaDDJJPage() {
 
       {/* ── Gate Monotributista ────────────────────────────────────────────── */}
       {regime.regime === 'monotributista' && (
-        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-amber-800 mb-1">Monotributistas no presentan DDJJ mensual de IIBB</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                En Misiones (y en la mayoría de las provincias), el Impuesto sobre los Ingresos Brutos
-                está <strong>unificado al pago del Monotributo</strong>. El componente provincial
-                queda comprendido dentro de la cuota mensual que abonás a ARCA — no existe una
-                declaración jurada separada ante la ATM Misiones.
+        <div className="mb-4 space-y-3">
+          {/* Aviso principal: Misiones NO adhirió al Monotributo Unificado */}
+          <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-800 mb-1">
+                  Misiones NO adhirió al Monotributo Unificado — debés pagar IIBB por separado
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed mb-2">
+                  A diferencia de otras 14 provincias (Buenos Aires, Córdoba, Mendoza, etc.), Misiones
+                  <strong> no integró el Monotributo Unificado</strong>. Tu cuota nacional no incluye el
+                  componente de IIBB provincial. Debés inscribirte en ATM Misiones como contribuyente de
+                  Ingresos Brutos y presentar DDJJ mensual como cualquier otro régimen.
+                </p>
+                <div className="bg-amber-100 rounded-lg p-2 text-xs text-amber-800 space-y-1">
+                  <p className="font-semibold">Para monotributistas en Misiones (régimen vigente):</p>
+                  <p>· <strong>Base imponible:</strong> total de Factura C (precio único, sin IVA separado).</p>
+                  <p>· <strong>Alícuota:</strong> igual que el Régimen General para tu actividad.</p>
+                  <p>· <strong>DDJJ:</strong> presentación mensual ante ATM (vence día 15).</p>
+                  <p>· <strong>Convenio Multilateral:</strong> si operás en otras provincias, declarás en COMARB.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Nota sobre RS-IIBB propuesto (no vigente) */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+            <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-blue-700">
+              <p className="font-semibold mb-1">
+                Proyecto RS-IIBB — Cuota fija para Monotributistas (en análisis legislativo, NO vigente)
               </p>
-              <p className="text-xs text-amber-600 mt-2 font-semibold">
-                ✓ Tu obligación provincial se cumple al pagar la cuota mensual del Monotributo.
+              <p className="mb-1.5">
+                En abril de 2026, la Cámara de Representantes de Misiones recibió un proyecto que
+                reemplazaría la DDJJ mensual por una <strong>cuota fija alineada a cada categoría del Monotributo</strong>,
+                sin obligación de presentar declaración jurada y con exención de retenciones bancarias.
+                Solo aplica a actividad exclusiva en Misiones (excluye Convenio Multilateral).
               </p>
-              <p className="text-[10px] text-amber-500 mt-1 italic">
-                El formulario siguiente está disponible solo a fines educativos para conocer el procedimiento del Régimen General.
+              <p className="font-semibold mb-1">Cuotas propuestas de referencia (sujetas a modificación):</p>
+              <div className="grid grid-cols-4 gap-1 text-[10px] bg-white rounded border border-blue-100 p-2">
+                {RS_IIBB_PROYECTO.cuotasPorCategoria.map(c => (
+                  <div key={c.categoria} className="text-center">
+                    <div className="font-bold text-blue-800">Cat. {c.categoria}</div>
+                    <div className="text-blue-600">${c.cuotaMensual.toLocaleString('es-AR')}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1.5 text-blue-500 italic">
+                Este proyecto NO está aprobado. El formulario abajo refleja el régimen vigente.
               </p>
             </div>
           </div>
@@ -341,21 +375,38 @@ export default function NuevaDDJJPage() {
                 <div className="flex-1">
                   <p className="text-sm font-bold text-emerald-800">{pymezData.company_name}</p>
                   <p className="text-xs text-slate-500 mb-2">CUIT {pymezData.company_cuit} · {pymezData.invoice_count} comprobantes</p>
-                  {/* Desglose pedagógico: bruto − IVA = base imponible */}
-                  <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
-                    <div className="flex justify-between text-slate-600">
-                      <span>Ventas brutas (con IVA)</span>
-                      <span className="font-semibold">{formatCurrency(pymezData.total_bruto)}</span>
+                  {regime.regime === 'monotributista' ? (
+                    /* Monotributista: Factura C, precio único = base IIBB (sin IVA a descontar) */
+                    <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Total facturado (Factura C)</span>
+                        <span className="font-semibold">{formatCurrency(pymezData.total_sales_net)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-emerald-700">
+                        <span>= Base imponible IIBB</span>
+                        <span>{formatCurrency(pymezData.total_sales_net)}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic">
+                        Factura C no desglosa IVA — el total facturado es la base imponible directa.
+                      </p>
                     </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>− IVA Débito Fiscal</span>
-                      <span className="font-semibold text-red-500">− {formatCurrency(pymezData.iva_debito_fiscal)}</span>
+                  ) : (
+                    /* RI / Autónomo: Factura A o B — base = neto sin IVA */
+                    <div className="bg-slate-50 rounded-lg p-2 space-y-1 text-xs">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Ventas brutas (con IVA)</span>
+                        <span className="font-semibold">{formatCurrency(pymezData.total_bruto)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <span>− IVA Débito Fiscal</span>
+                        <span className="font-semibold text-red-500">− {formatCurrency(pymezData.iva_debito_fiscal)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-emerald-700">
+                        <span>= Base imponible IIBB</span>
+                        <span>{formatCurrency(pymezData.total_sales_net)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-emerald-700">
-                      <span>= Base imponible IIBB</span>
-                      <span>{formatCurrency(pymezData.total_sales_net)}</span>
-                    </div>
-                  </div>
+                  )}
                   <p className="mt-1.5 text-[10px] text-emerald-600 font-semibold">
                     ✓ Pre-cargada en actividad principal ({taxpayer.primary_activity_code})
                   </p>
@@ -449,7 +500,11 @@ export default function NuevaDDJJPage() {
               </div>
               <div className="bg-slate-50 rounded-lg p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Total ingresos netos facturados (sin IVA)</span>
+                  <span>
+                    {regime.regime === 'monotributista'
+                      ? 'Total facturado (Factura C — precio único sin IVA separado)'
+                      : 'Total ingresos netos facturados (sin IVA)'}
+                  </span>
                   <span className="font-semibold">{formatCurrency(totalRevenue)}</span>
                 </div>
                 {totalExempt > 0 && (
