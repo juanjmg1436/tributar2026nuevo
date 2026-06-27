@@ -406,16 +406,20 @@ export default function NuevaDDJJPage() {
             )}
 
             {cuitMismatch && pymezData && (
-              <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800">
-                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold mb-0.5">Incompatibilidad de CUIT — verificá los datos</p>
-                  <p>
-                    El CUIT de la empresa en <strong>PyMEZ 360</strong> es <strong>{pymezData.company_cuit}</strong>,
-                    pero tu alta en <strong>ATM / TRIBUT.AR</strong> registra el CUIT <strong>{taxpayer?.cuit}</strong>.
-                    Verificá que estás usando el código de la empresa correcta.
-                  </p>
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800">
+                <div className="flex items-start gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold mb-0.5">Aviso: CUIT diferente entre PyMEZ 360 y tu alta ATM</p>
+                    <p>
+                      PyMEZ 360 registra CUIT <strong>{pymezData.company_cuit}</strong>, pero tu alta en ATM / TRIBUT.AR tiene <strong>{taxpayer?.cuit}</strong>.
+                      Verificá que estás usando el código de la empresa correcta en PyMEZ 360.
+                    </p>
+                  </div>
                 </div>
+                <p className="mt-2 pl-6 text-amber-700 font-semibold">
+                  ✓ Este aviso no bloquea el guardado — podés continuar y guardar la DDJJ normalmente.
+                </p>
               </div>
             )}
 
