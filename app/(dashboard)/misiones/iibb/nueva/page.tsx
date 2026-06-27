@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PageContainer } from '@/components/layout/PageContainer'
@@ -54,6 +54,22 @@ export default function NuevaDDJJPage() {
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const [origin, setOrigin]           = useState<'manual' | 'pymez360'>('manual')
+
+  // ── Pre-cargar actividad principal del contribuyente ────────────────────────
+  useEffect(() => {
+    if (!taxpayer?.primary_activity_code) return
+    setLines(prev => {
+      if (prev[0].activity_code !== '') return prev
+      const actCode  = taxpayer.primary_activity_code
+      const actEntry = IIBB_ACTIVITIES.find(a => a.code === actCode)
+      return [{
+        ...prev[0],
+        activity_code: actCode,
+        activity_name: actEntry?.name ?? taxpayer.primary_activity_name ?? '',
+        rate:          actEntry?.rate ?? 0,
+      }]
+    })
+  }, [taxpayer?.primary_activity_code])
 
   // ── PyMEZ 360 import ────────────────────────────────────────────────────────
   const [pymezToken, setPymezToken]       = useState('')
@@ -230,6 +246,15 @@ export default function NuevaDDJJPage() {
 
   return (
     <PageContainer title="Nueva DDJJ — IIBB" subtitle="Declaración jurada mensual de Ingresos Brutos">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+        <a href="/misiones" className="hover:text-primary-600">ATM Misiones</a>
+        <span>›</span>
+        <a href="/misiones/iibb" className="hover:text-primary-600 font-semibold text-slate-700">Historial DDJJ IIBB</a>
+        <span>›</span>
+        <span className="text-primary-600 font-semibold">Nueva DDJJ</span>
+      </div>
+
       <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 flex gap-2 items-center">
         <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
         <p className="text-xs text-red-700 font-medium">SIMULADOR DIDÁCTICO — DATOS DEMO — SIN VALIDEZ FISCAL NI LEGAL</p>
@@ -440,7 +465,7 @@ export default function NuevaDDJJPage() {
           <Card padding="none" className="mb-4">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-slate-700 text-sm">Actividades e ingresos</h3>
+                <h3 className="font-semibold text-slate-700 text-sm">Actividades e ingresos <span className="text-red-500 text-xs">(requerido para guardar)</span></h3>
                 {origin === 'pymez360' && (
                   <p className="text-[10px] text-violet-600 font-semibold mt-0.5">Datos importados desde PyMEZ 360</p>
                 )}
@@ -471,13 +496,14 @@ export default function NuevaDDJJPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 mb-1">
-                            Ingresos brutos ($)
+                            Ingresos brutos ($) <span className="text-red-500">*</span>
                             {origin === 'pymez360' && idx === 0 && (
                               <span className="ml-1 text-violet-500 font-bold">← PyMEZ</span>
                             )}
                           </label>
                           <input type="number" value={line.revenue} onChange={e => updateLine(idx, 'revenue', e.target.value)}
-                            className={inputCls} placeholder="0.00" min="0" />
+                            className={`${inputCls} ${!line.revenue && line.activity_code ? 'border-amber-300 ring-1 ring-amber-200' : ''}`}
+                            placeholder="Ingresá el monto" min="0" />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 mb-1">Exentos ($)</label>
@@ -604,8 +630,14 @@ export default function NuevaDDJJPage() {
           </Card>
 
           {/* Acciones */}
+          {error && (
+            <div className="flex items-start gap-2 p-3 mb-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
           <div className="flex flex-wrap gap-3 justify-end">
-            <a href="/misiones/iibb"><Button variant="outline">Cancelar</Button></a>
+            <a href="/misiones/iibb"><Button variant="outline">← Historial DDJJ</Button></a>
             <Button variant="outline" onClick={() => handleSubmit('draft')} loading={saving}>
               Guardar borrador
             </Button>
