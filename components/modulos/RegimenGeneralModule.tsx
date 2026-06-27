@@ -111,10 +111,22 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
   // Último ejercicio presentado (para calcular anticipos)
   const [lastYearTax, setLastYearTax] = useState<number | null>(null)
 
+  // ── Sueldos 360 Ganancias retenciones state ────────────────────────────────
+  const [s360Token, setS360Token]                 = useState('')
+  const [s360Syncing, setS360Syncing]             = useState(false)
+  const [s360Error, setS360Error]                 = useState<string | null>(null)
+  const [s360GananciasData, setS360GananciasData] = useState<{
+    company_name:       string
+    ganancias_retenciones: { periodo: string; total_retencion: number }[]
+    ganancias_total_anual: number
+    synced_at:          string
+  } | null>(null)
+
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => { if (user) loadIva() }, [user, ivaPeriod])
   useEffect(() => { if (user) loadGanancias() }, [user, fiscalYear])
   useEffect(() => { loadPymezCompanies() }, []) // carga empresas al montar
+  useEffect(() => { if (user) loadS360GananciasCache() }, [user]) // carga caché S360 al montar
 
   async function loadPymezCompanies() {
     setPymezLoading(true); setPymezError(null)
@@ -146,6 +158,45 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
 
   function clearPymezSync() {
     setPymezSynced(null); setPymezError(null)
+  }
+
+  async function loadS360GananciasCache() {
+    const db = supabase as any
+    const { data } = await db
+      .from('sueldos360_imports')
+      .select('company_name, ganancias_retenciones_json, ganancias_total_anual, synced_at')
+      .eq('user_id', user!.id)
+      .maybeSingle()
+    if (data?.ganancias_retenciones_json?.length > 0) {
+      setS360GananciasData({
+        company_name:          data.company_name,
+        ganancias_retenciones: data.ganancias_retenciones_json,
+        ganancias_total_anual: data.ganancias_total_anual || 0,
+        synced_at:             data.synced_at,
+      })
+    }
+  }
+
+  async function syncS360Ganancias() {
+    if (!s360Token.trim()) { setS360Error('Ingresá el código de Sueldos 360.'); return }
+    setS360Syncing(true); setS360Error(null)
+    try {
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data.session?.access_token
+      const res = await fetch(
+        `/api/sueldos-sync?action=sync&token=${encodeURIComponent(s360Token.trim().toUpperCase())}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error de sincronización')
+      setS360GananciasData({
+        company_name:          data.company?.razon_social || '',
+        ganancias_retenciones: data.ganancias_retenciones || [],
+        ganancias_total_anual: data.ganancias_total_anual || 0,
+        synced_at:             new Date().toISOString(),
+      })
+    } catch (e) { setS360Error(e instanceof Error ? e.message : 'Error') }
+    finally { setS360Syncing(false) }
   }
 
   async function loadIva() {
@@ -1240,6 +1291,112 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
               </Card>
             </>
           )}
+          {/* ── Retenciones Ganancias a empleados (Sueldos 360) ────────────────── */}
+          <Card padding="md" className="border-violet-200 bg-violet-50">
+            <div className="flex items-center gap-2 mb-3">
+              <Link2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-violet-800">Retenciones de Ganancias a empleados</p>
+                <p className="text-xs text-violet-600">Importado desde Sueldos 360 — obligación como agente de retención</p>
+              </div>
+            </div>
+
+            <div className="mb-3 p-3 bg-white border border-violet-100 rounded-xl text-xs text-violet-700 leading-relaxed">
+              <strong>Como empleador</strong>, vos retenés Ganancias 4ta categoría del sueldo de tus empleados y debés depositarla mensualmente ante ARCA (SIRADIG-Empleador / F.649).
+              Esto es <em>independiente</em> de tu propia DDJJ de Ganancias como empresa.
+            </div>
+
+            {s360GananciasData ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-xs font-semibold text-violet-800">{s360GananciasData.company_name}</p>
+                    <p className="text-[10px] text-violet-500">Sincronizado: {new Date(s360GananciasData.synced_at).toLocaleDateString('es-AR')}</p>
+                  </div>
+                  <button onClick={() => setS360GananciasData(null)} className="text-[10px] text-violet-400 hover:text-violet-600 underline">Cambiar empresa</button>
+                </div>
+
+                {s360GananciasData.ganancias_retenciones.length === 0 ? (
+                  <div className="p-3 bg-white border border-violet-100 rounded-xl text-xs text-slate-500 text-center">
+                    Sin retenciones de Ganancias registradas en los últimos períodos.<br/>
+                    <span className="text-violet-600">Esto es normal si tus empleados no superan el MNI.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="p-2 bg-white border border-violet-200 rounded-xl text-center">
+                        <p className="text-lg font-bold text-violet-700">{formatCurrency(s360GananciasData.ganancias_total_anual)}</p>
+                        <p className="text-[10px] text-slate-500">Total retenido {new Date().getFullYear()}</p>
+                      </div>
+                      <div className="p-2 bg-white border border-violet-200 rounded-xl text-center">
+                        <p className="text-lg font-bold text-slate-700">{s360GananciasData.ganancias_retenciones.length}</p>
+                        <p className="text-[10px] text-slate-500">Períodos con retención</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-violet-100 rounded-xl overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-violet-50 border-b border-violet-100">
+                            <th className="text-left px-3 py-2 font-semibold text-violet-700">Período</th>
+                            <th className="text-right px-3 py-2 font-semibold text-violet-700">Ret. Ganancias</th>
+                            <th className="text-right px-3 py-2 font-semibold text-violet-700">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s360GananciasData.ganancias_retenciones.map((r, i) => (
+                            <tr key={i} className="border-b border-violet-50 last:border-0">
+                              <td className="px-3 py-1.5 text-slate-700 font-medium">{r.periodo}</td>
+                              <td className="px-3 py-1.5 text-right font-bold text-violet-700">{formatCurrency(r.total_retencion)}</td>
+                              <td className="px-3 py-1.5 text-right">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Simular depósito</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-violet-50 border-t border-violet-200">
+                            <td className="px-3 py-2 font-bold text-violet-800 text-xs">Total acumulado</td>
+                            <td className="px-3 py-2 text-right font-black text-violet-800 text-sm">{formatCurrency(s360GananciasData.ganancias_retenciones.reduce((s, r) => s + r.total_retencion, 0))}</td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    <p className="text-[10px] text-violet-500 leading-relaxed">
+                      Estos montos deben depositarse mensualmente mediante F.649 (SIRADIG-Empleador) antes del vencimiento según el CUIT del agente de retención.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-violet-700 mb-2">
+                  Ingresá el código de tu empresa en <strong>Sueldos 360</strong> para importar las retenciones.
+                </p>
+                {s360Error && <p className="text-xs text-red-600 mb-2 p-2 bg-red-50 rounded-lg">{s360Error}</p>}
+                <div className="flex gap-2">
+                  <input
+                    type="text" maxLength={8}
+                    value={s360Token}
+                    onChange={e => setS360Token(e.target.value.toUpperCase())}
+                    placeholder="Código S360 (ej: AB12CD34)"
+                    className="flex-1 px-3 py-1.5 border border-violet-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-violet-400"
+                    onKeyDown={e => e.key === 'Enter' && syncS360Ganancias()}
+                  />
+                  <Button size="sm" onClick={syncS360Ganancias} loading={s360Syncing}
+                    className="!bg-violet-700 hover:!bg-violet-800 !text-white">
+                    <RefreshCw className="w-3 h-3 mr-1" /> Sincronizar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-violet-400 mt-1">
+                  El código está en Sueldos 360 → Empresa → Código de sincronización.
+                </p>
+              </div>
+            )}
+          </Card>
+
         </div>
       )}
 

@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         .select('id, periodo, tipo, status, total_bruto, total_neto, total_contribuciones_patronales, total_aportes_trabajador, total_costo_laboral, fecha_pago')
         .eq('company_id', companyId)
         .order('periodo', { ascending: false })
-        .limit(6),
+        .limit(12),
       db.from('f931_reports')
         .select('id, periodo, cantidad_empleados, total_remuneraciones, total_aportes_jubilatorios, total_obra_social, total_pami, total_contribuciones_patronales, total_general, status, presentado_at, pagado_at')
         .eq('company_id', companyId)
@@ -85,21 +85,66 @@ export async function GET(request: NextRequest) {
     const f931s      = f931Res.data || []
     const lastPayroll = payrolls[0]
 
+    // ── Retenciones Ganancias (D03) por período ───────────────────────────────
+    let gananciasRetenciones: { periodo: string; total_retencion: number }[] = []
+    let gananciaTotalAnual = 0
+
+    const runIds = payrolls.map((r: any) => r.id)
+    if (runIds.length > 0) {
+      const { data: resultRows } = await db
+        .from('payroll_results')
+        .select('id, payroll_run_id')
+        .in('payroll_run_id', runIds)
+
+      const resultIds = (resultRows || []).map((r: any) => r.id)
+      if (resultIds.length > 0) {
+        const { data: ganItems } = await db
+          .from('payroll_result_items')
+          .select('importe, payroll_result_id')
+          .eq('concept_codigo', 'D03')
+          .in('payroll_result_id', resultIds)
+
+        // Agrupar por período via payroll_run
+        const resultToRun = new Map<string, string>()
+        for (const r of resultRows || []) resultToRun.set(r.id, r.payroll_run_id)
+
+        const runToTotal = new Map<string, number>()
+        for (const item of ganItems || []) {
+          const runId = resultToRun.get(item.payroll_result_id)
+          if (runId) runToTotal.set(runId, (runToTotal.get(runId) || 0) + (item.importe || 0))
+        }
+
+        gananciasRetenciones = payrolls
+          .map((run: any) => ({
+            periodo:         run.periodo,
+            total_retencion: Math.round(runToTotal.get(run.id) || 0),
+          }))
+          .filter((r: any) => r.total_retencion > 0)
+
+        const currentYear = new Date().getFullYear()
+        gananciaTotalAnual = gananciasRetenciones
+          .filter((r) => r.periodo.startsWith(String(currentYear)))
+          .reduce((sum, r) => sum + r.total_retencion, 0)
+      }
+    }
+
     // Guardar en TRIBUT.AR (service role bypassa RLS — se puede porque user_id ya verificado)
     await (tributarAdmin() as any).from('sueldos360_imports').upsert({
-      user_id:             user.id,
-      s360_company_id:     companyId,
-      company_name:        companyRow.razon_social,
-      company_cuit:        companyRow.cuit,
-      employee_count:      employees.length,
-      employees_json:      employees,
-      payroll_runs_json:   payrolls,
-      f931_json:           f931s,
-      last_period:         lastPayroll?.periodo ?? null,
-      total_bruto:         lastPayroll?.total_bruto ?? 0,
-      total_neto:          lastPayroll?.total_neto ?? 0,
-      total_contribuciones: lastPayroll?.total_contribuciones_patronales ?? 0,
-      synced_at:           new Date().toISOString(),
+      user_id:                    user.id,
+      s360_company_id:            companyId,
+      company_name:               companyRow.razon_social,
+      company_cuit:               companyRow.cuit,
+      employee_count:             employees.length,
+      employees_json:             employees,
+      payroll_runs_json:          payrolls,
+      f931_json:                  f931s,
+      last_period:                lastPayroll?.periodo ?? null,
+      total_bruto:                lastPayroll?.total_bruto ?? 0,
+      total_neto:                 lastPayroll?.total_neto ?? 0,
+      total_contribuciones:       lastPayroll?.total_contribuciones_patronales ?? 0,
+      ganancias_retenciones_json: gananciasRetenciones,
+      ganancias_total_anual:      gananciaTotalAnual,
+      synced_at:                  new Date().toISOString(),
     }, { onConflict: 'user_id,s360_company_id' })
 
     return NextResponse.json({
@@ -109,6 +154,8 @@ export async function GET(request: NextRequest) {
       employees,
       payroll_runs: payrolls,
       f931_reports: f931s,
+      ganancias_retenciones: gananciasRetenciones,
+      ganancias_total_anual: gananciaTotalAnual,
     })
   }
 
