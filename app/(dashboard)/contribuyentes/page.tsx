@@ -12,9 +12,17 @@ import { Input } from '@/components/ui/Input'
 import { useUser } from '@/hooks/useUser'
 import {
   User, Building2, CheckCircle2, Clock, Plus, Pencil,
-  ArrowRight, Check, X, Info
+  ArrowRight, Check, X, Info, AlertTriangle
 } from 'lucide-react'
 import type { TaxpayerProfile } from '@/types'
+
+interface CuitCheckResult {
+  tributar_cuit:  string | null
+  pymez_cuit:     string | null
+  sueldos_cuit:   string | null
+  has_conflict:   boolean
+  details:        { app: string; cuit: string }[]
+}
 
 export default function ContribuyentesPage() {
   const router = useRouter()
@@ -22,6 +30,11 @@ export default function ContribuyentesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAlias, setEditAlias] = useState('')
   const [savingAlias, setSavingAlias] = useState(false)
+  const [editingCuitId, setEditingCuitId] = useState<string | null>(null)
+  const [editCuit, setEditCuit] = useState('')
+  const [savingCuit, setSavingCuit] = useState(false)
+  const [cuitCheck, setCuitCheck] = useState<CuitCheckResult | null>(null)
+  const [checkingCuit, setCheckingCuit] = useState(false)
   const [creating, setCreating] = useState(false)
   const [switching, setSwitching] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +62,43 @@ export default function ContribuyentesPage() {
     await refresh()
     setEditingId(null)
     setSavingAlias(false)
+  }
+
+  function startEditCuit(tp: TaxpayerProfile) {
+    setEditingCuitId(tp.id)
+    setEditCuit(tp.cuit ?? '')
+  }
+
+  async function saveCuit(id: string) {
+    const cuit = editCuit.trim()
+    if (!cuit) return
+    setSavingCuit(true)
+    await supabase.from('taxpayer_profiles').update({ cuit } as any).eq('id', id)
+    await refresh()
+    setEditingCuitId(null)
+    setSavingCuit(false)
+    // After saving, run cross-app check
+    await checkCuitsAcrossApps()
+  }
+
+  async function checkCuitsAcrossApps() {
+    setCheckingCuit(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) return
+      const res = await fetch('/api/cuit-check', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setCuitCheck(json)
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setCheckingCuit(false)
+    }
   }
 
   async function handleCreate() {
@@ -135,7 +185,29 @@ export default function ContribuyentesPage() {
               {/* Datos del contribuyente */}
               <div className="space-y-2 mb-4">
                 <Row label="Razón social" value={tp.entity_name} />
-                <Row label="CUIT" value={tp.cuit} mono />
+                {/* CUIT editable */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-400 flex-shrink-0">CUIT</span>
+                  {editingCuitId === tp.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        autoFocus
+                        value={editCuit}
+                        onChange={e => setEditCuit(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveCuit(tp.id)}
+                        placeholder="XX-XXXXXXXX-X"
+                        className="text-xs font-mono border border-primary-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32"
+                      />
+                      <button onClick={() => saveCuit(tp.id)} disabled={savingCuit} className="text-green-600 hover:text-green-700"><Check className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setEditingCuitId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-mono text-slate-700">{tp.cuit}</span>
+                      <button onClick={() => startEditCuit(tp)} title="Editar CUIT" className="text-slate-300 hover:text-slate-500 transition-colors"><Pencil className="w-3 h-3" /></button>
+                    </div>
+                  )}
+                </div>
                 <Row label="Estado" value={
                   tp.status === 'active' ? '✅ Alta completada'
                   : tp.status === 'incomplete' ? '⚙️ En configuración'
@@ -215,8 +287,62 @@ export default function ContribuyentesPage() {
         )}
       </div>
 
+      {/* Validación cruzada de CUIT */}
+      <div className="mt-6">
+        <div className="flex items-center gap-3 mb-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={checkCuitsAcrossApps}
+            loading={checkingCuit}
+          >
+            🔍 Verificar CUIT en las 3 apps
+          </Button>
+          {cuitCheck && !cuitCheck.has_conflict && (
+            <span className="text-xs text-green-700 font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" /> CUITs coinciden en todas las apps vinculadas
+            </span>
+          )}
+        </div>
+
+        {cuitCheck?.has_conflict && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4">
+            <div className="flex items-start gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">CUIT diferente entre aplicaciones</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  El CUIT registrado en TRIBUT.AR no coincide con el de las apps vinculadas. Esto puede causar errores en la sincronización de datos.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              {cuitCheck.details.map(d => (
+                <div key={d.app} className="flex items-center justify-between bg-white rounded-lg px-3 py-1.5 text-xs border border-amber-100">
+                  <span className="font-medium text-slate-600">{d.app}</span>
+                  <span className="font-mono text-slate-800">{d.cuit}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-amber-600 mt-2">
+              Para corregir: editá el CUIT en TRIBUT.AR usando el ícono ✏️ junto al número, o actualizá el CUIT en PyMEZ 360 → Mi Empresa o Sueldos 360 → Empresas.
+            </p>
+          </div>
+        )}
+
+        {cuitCheck && !cuitCheck.has_conflict && cuitCheck.details.length < 2 && (
+          <p className="text-xs text-slate-400 mt-1">
+            {cuitCheck.pymez_cuit === null && cuitCheck.sueldos_cuit === null
+              ? 'No hay apps vinculadas aún. Vinculá PyMEZ 360 o importá desde Sueldos 360 para habilitar la comparación.'
+              : cuitCheck.pymez_cuit === null
+              ? 'PyMEZ 360 no vinculado. Vinculá el punto de venta para comparar.'
+              : 'Sueldos 360 no importado aún. Importá una liquidación para comparar.'}
+          </p>
+        )}
+      </div>
+
       {/* Info pedagógica */}
-      <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
         <p className="text-xs text-amber-700 leading-relaxed">
           <strong>Consejo pedagógico:</strong> Usá el <strong>Slot 1</strong> para practicar el ciclo de un <em>Monotributista o Autónomo</em> (persona humana), y el <strong>Slot 2</strong> para simular una <em>empresa bajo Régimen General</em> con empleados y liquidación de IVA/Ganancias. Así cubrís ambos circuitos que aparecen en los exámenes.
         </p>
