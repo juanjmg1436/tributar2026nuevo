@@ -15,7 +15,8 @@ import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Trash2, ArrowLeft, CheckCircle2, Info } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, CheckCircle2, Info, Store, ClipboardList, Link2 } from 'lucide-react'
+import Link from 'next/link'
 import type { PointOfSale, TaxpayerProfile } from '@/types'
 import { useRegime } from '@/hooks/useRegime'
 
@@ -46,6 +47,8 @@ export default function NuevoComprobantePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeRegimeCode, setActiveRegimeCode] = useState<string | null>(null)
+  const [isRegistrationComplete, setIsRegistrationComplete] = useState(false)
+  const [hasSyncedPos, setHasSyncedPos] = useState(false)
   const supabase = createClient()
 
   // Default al primer tipo permitido por régimen (C para mono, A para RI)
@@ -73,17 +76,22 @@ export default function NuevoComprobantePage() {
   useEffect(() => {
     if (!user) return
     async function loadData() {
-      const [posRes, tpRes, regimeRes] = await Promise.all([
+      const [posRes, tpRes, regimeRes, stepsRes] = await Promise.all([
         supabase.from('points_of_sale').select('*').eq('user_id', user!.id).eq('status', 'active'),
         supabase.from('taxpayer_profiles').select('*').eq('user_id', user!.id).eq('is_active', true).maybeSingle(),
         supabase.from('taxpayer_regime_status').select('*, tax_regimes(code)').eq('user_id', user!.id).eq('status', 'active'),
+        supabase.from('registration_steps').select('status').eq('user_id', user!.id),
       ])
-      setPosList(posRes.data || [])
+      const activePOS: PointOfSale[] = posRes.data || []
+      setPosList(activePOS)
       setTaxpayer(tpRes.data || null)
       const activeRegime = (regimeRes.data || [])[0]
       if (activeRegime?.tax_regimes) {
         setActiveRegimeCode((activeRegime.tax_regimes as any).code)
       }
+      const completedSteps = (stepsRes.data || []).filter((s: any) => s.status === 'completed').length
+      setIsRegistrationComplete(completedSteps === 6)
+      setHasSyncedPos(activePOS.some((p: any) => !!p.pymez_linked_at))
       setLoading(false)
     }
     loadData()
@@ -167,6 +175,102 @@ export default function NuevoComprobantePage() {
   const posOptions = posList.map(p => ({ value: p.id, label: `N°${p.pos_number} — ${p.name}` }))
 
   if (userLoading || loading) return <PageContainer><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageContainer>
+
+  if (!isRegistrationComplete) return (
+    <PageContainer
+      title="Emitir comprobante"
+      subtitle="Completá los datos para emitir un comprobante simulado."
+      actions={
+        <Button variant="outline" onClick={() => router.push('/comprobantes')}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Volver
+        </Button>
+      }
+    >
+      <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+          <ClipboardList className="w-8 h-8 text-blue-600" />
+        </div>
+        <div className="max-w-md">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            Empresa no dada de alta en ATP
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Antes de emitir comprobantes, debés completar el <strong>alta registral de la empresa</strong> (los 6 pasos del Alta Temprana Patronal).
+            Una vez finalizado, vas a poder habilitar puntos de venta y emitir comprobantes.
+          </p>
+        </div>
+        <Link href="/alta-rut">
+          <Button>
+            <ClipboardList className="w-4 h-4 mr-2" /> Ir al Alta Registral (ATP)
+          </Button>
+        </Link>
+      </div>
+    </PageContainer>
+  )
+
+  if (posList.length === 0) return (
+    <PageContainer
+      title="Emitir comprobante"
+      subtitle="Completá los datos para emitir un comprobante simulado."
+      actions={
+        <Button variant="outline" onClick={() => router.push('/comprobantes')}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Volver
+        </Button>
+      }
+    >
+      <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+          <Store className="w-8 h-8 text-amber-600" />
+        </div>
+        <div className="max-w-md">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            Necesitás habilitar un punto de venta primero
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Antes de emitir comprobantes, la empresa debe tener al menos un punto de venta activo.
+            Configuralo en la sección <strong>Puntos de Venta</strong> y luego volvé aquí.
+          </p>
+        </div>
+        <Link href="/puntos-venta">
+          <Button>
+            <Store className="w-4 h-4 mr-2" /> Ir a Puntos de Venta
+          </Button>
+        </Link>
+      </div>
+    </PageContainer>
+  )
+
+  if (!hasSyncedPos) return (
+    <PageContainer
+      title="Emitir comprobante"
+      subtitle="Completá los datos para emitir un comprobante simulado."
+      actions={
+        <Button variant="outline" onClick={() => router.push('/comprobantes')}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Volver
+        </Button>
+      }
+    >
+      <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-violet-100 flex items-center justify-center">
+          <Link2 className="w-8 h-8 text-violet-600" />
+        </div>
+        <div className="max-w-md">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            Punto de venta sin sincronizar
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Tenés puntos de venta activos pero ninguno está vinculado al sistema de facturación (PyMEZ 360).
+            Sincronizá al menos un punto de venta y luego volvé aquí para emitir comprobantes.
+          </p>
+        </div>
+        <Link href="/puntos-venta">
+          <Button>
+            <Link2 className="w-4 h-4 mr-2" /> Ir a Puntos de Venta
+          </Button>
+        </Link>
+      </div>
+    </PageContainer>
+  )
 
   return (
     <PageContainer
