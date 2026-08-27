@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
       case 'validate': {
         // Validar que el código de PV existe en TRIBUT.AR
         const { data: posData, error } = await (supabase as any)
-          .from('puntos_venta')
-          .select('id, numero, nombre')
-          .eq('codigo', code.toUpperCase())
+          .from('points_of_sale')
+          .select('id, pos_number, name')
+          .eq('pymez_link_code', code.toUpperCase())
           .single()
 
         if (error || !posData) {
@@ -45,9 +45,8 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(
           {
             ok: true,
-            pos_number: posData.numero,
-            pos_name: posData.nombre,
-            codigo: posData.codigo,
+            pos_number: posData.pos_number,
+            pos_name: posData.name,
           },
           { status: 200, headers }
         )
@@ -63,9 +62,9 @@ export async function GET(req: NextRequest) {
         }
 
         const { data: posData, error: posError } = await (supabase as any)
-          .from('puntos_venta')
+          .from('points_of_sale')
           .select('id')
-          .eq('codigo', code.toUpperCase())
+          .eq('pymez_link_code', code.toUpperCase())
           .single()
 
         if (posError || !posData) {
@@ -77,9 +76,9 @@ export async function GET(req: NextRequest) {
 
         // Registrar la vinculación en TRIBUT.AR
         const { error: linkError } = await (supabase as any)
-          .from('puntos_venta')
+          .from('points_of_sale')
           .update({
-            pymez_linked_company: company,
+            pymez_company_name: company,
             pymez_linked_at: new Date().toISOString(),
           })
           .eq('id', posData.id)
@@ -97,9 +96,9 @@ export async function GET(req: NextRequest) {
       case 'unlink': {
         // Desvincular el PV de PyMEZ 360
         const { data: posData, error: posError } = await (supabase as any)
-          .from('puntos_venta')
+          .from('points_of_sale')
           .select('id')
-          .eq('codigo', code.toUpperCase())
+          .eq('pymez_link_code', code.toUpperCase())
           .single()
 
         if (posError || !posData) {
@@ -110,9 +109,9 @@ export async function GET(req: NextRequest) {
         }
 
         const { error: unlinkError } = await (supabase as any)
-          .from('puntos_venta')
+          .from('points_of_sale')
           .update({
-            pymez_linked_company: null,
+            pymez_company_name: null,
             pymez_linked_at: null,
           })
           .eq('id', posData.id)
