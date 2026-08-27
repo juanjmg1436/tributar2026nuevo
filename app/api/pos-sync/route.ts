@@ -1,155 +1,99 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-// Headers CORS
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, HEAD',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
-  'Access-Control-Max-Age': '86400',
-  'Content-Type': 'application/json',
+// API pública — llamada desde PyMEZ 360 para validar y vincular un POS
+// La seguridad viene de la unicidad del pymez_link_code (similar a sync_token)
+const db = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+)
+
+// La llama el navegador desde otro origen (pymez-360.vercel.app), así que
+// toda respuesta necesita CORS o el fetch del cliente falla con "Failed to fetch".
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age':       '86400',
 }
 
-async function handleValidate(code: string) {
-  const supabase = await createClient()
-
-  const { data: posData, error } = await (supabase as any)
-    .from('points_of_sale')
-    .select('id, pos_number, name')
-    .eq('pymez_link_code', code.toUpperCase())
-    .single()
-
-  if (error || !posData) {
-    return NextResponse.json(
-      { ok: false, error: 'Código inválido. Verificá el código en TRIBUT.AR → Puntos de venta.' },
-      { status: 400, headers: corsHeaders }
-    )
-  }
-
-  return NextResponse.json(
-    {
-      ok: true,
-      pos_number: posData.pos_number,
-      pos_name: posData.name,
-    },
-    { status: 200, headers: corsHeaders }
-  )
-}
-
-async function handleLink(code: string, company: string) {
-  const supabase = await createClient()
-
-  if (!company) {
-    return NextResponse.json(
-      { ok: false, error: 'company es requerido para link' },
-      { status: 400, headers: corsHeaders }
-    )
-  }
-
-  const { data: posData, error: posError } = await (supabase as any)
-    .from('points_of_sale')
-    .select('id')
-    .eq('pymez_link_code', code.toUpperCase())
-    .single()
-
-  if (posError || !posData) {
-    return NextResponse.json(
-      { ok: false, error: 'Código de PV no encontrado' },
-      { status: 404, headers: corsHeaders }
-    )
-  }
-
-  const { error: linkError } = await (supabase as any)
-    .from('points_of_sale')
-    .update({
-      pymez_company_name: company,
-      pymez_linked_at: new Date().toISOString(),
-    })
-    .eq('id', posData.id)
-
-  if (linkError) {
-    throw linkError
-  }
-
-  return NextResponse.json(
-    { ok: true, message: 'PV vinculado a PyMEZ 360' },
-    { status: 200, headers: corsHeaders }
-  )
-}
-
-async function handleUnlink(code: string) {
-  const supabase = await createClient()
-
-  const { data: posData, error: posError } = await (supabase as any)
-    .from('points_of_sale')
-    .select('id')
-    .eq('pymez_link_code', code.toUpperCase())
-    .single()
-
-  if (posError || !posData) {
-    return NextResponse.json(
-      { ok: false, error: 'Código de PV no encontrado' },
-      { status: 404, headers: corsHeaders }
-    )
-  }
-
-  const { error: unlinkError } = await (supabase as any)
-    .from('points_of_sale')
-    .update({
-      pymez_company_name: null,
-      pymez_linked_at: null,
-    })
-    .eq('id', posData.id)
-
-  if (unlinkError) {
-    throw unlinkError
-  }
-
-  return NextResponse.json(
-    { ok: true, message: 'PV desvinculado de PyMEZ 360' },
-    { status: 200, headers: corsHeaders }
-  )
-}
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const action = searchParams.get('action')
-  const code = searchParams.get('code')
-  const company = searchParams.get('company')
-
-  if (!action || !code) {
-    return NextResponse.json(
-      { ok: false, error: 'action y code son requeridos' },
-      { status: 400, headers: corsHeaders }
-    )
-  }
-
-  try {
-    switch (action) {
-      case 'validate':
-        return await handleValidate(code)
-      case 'link':
-        return await handleLink(code, company || '')
-      case 'unlink':
-        return await handleUnlink(code)
-      default:
-        return NextResponse.json(
-          { ok: false, error: 'action desconocida' },
-          { status: 400, headers: corsHeaders }
-        )
-    }
-  } catch (error) {
-    console.error('pos-sync error:', error)
-    return NextResponse.json(
-      { ok: false, error: 'Error interno del servidor' },
-      { status: 500, headers: corsHeaders }
-    )
-  }
+function json(body: unknown, init?: { status?: number }) {
+  return NextResponse.json(body, { status: init?.status ?? 200, headers: CORS })
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  })
+  return new NextResponse(null, { status: 204, headers: CORS })
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const action = searchParams.get('action')
+  const code   = searchParams.get('code')?.trim().toUpperCase()
+
+  if (!code) {
+    return json({ error: 'Se requiere el parámetro code.' }, { status: 400 })
+  }
+
+  const { data: pos } = await (db as any)
+    .from('points_of_sale')
+    .select('id, pos_number, name, status, pymez_linked_at, pymez_company_name')
+    .eq('pymez_link_code', code)
+    .maybeSingle()
+
+  if (!pos) {
+    return json(
+      { error: 'Código inválido. Verificá el código en TRIBUT.AR → Puntos de venta.' },
+      { status: 404 },
+    )
+  }
+
+  if (pos.status !== 'active') {
+    return json(
+      { error: 'El punto de venta está inactivo en TRIBUT.AR. Activalo primero.' },
+      { status: 403 },
+    )
+  }
+
+  // ── validate: solo consulta, sin efectos ──────────────────────────────────
+  if (action === 'validate') {
+    return json({
+      ok:           true,
+      pos_number:   pos.pos_number,
+      pos_name:     pos.name,
+      linked:       !!pos.pymez_linked_at,
+      company_name: pos.pymez_company_name ?? null,
+    })
+  }
+
+  // ── link: PyMEZ 360 registra la vinculación ───────────────────────────────
+  if (action === 'link') {
+    const company = searchParams.get('company')?.trim() ?? 'PyMEZ 360'
+
+    await (db as any)
+      .from('points_of_sale')
+      .update({
+        pymez_linked_at:    new Date().toISOString(),
+        pymez_company_name: company,
+      })
+      .eq('id', pos.id)
+
+    return json({
+      ok:         true,
+      pos_number: pos.pos_number,
+      pos_name:   pos.name,
+      message:    `Punto de venta ${pos.pos_number} habilitado para ventas en ${company}.`,
+    })
+  }
+
+  // ── unlink: desvincula PyMEZ 360 ─────────────────────────────────────────
+  if (action === 'unlink') {
+    await (db as any)
+      .from('points_of_sale')
+      .update({ pymez_linked_at: null, pymez_company_name: null })
+      .eq('id', pos.id)
+
+    return json({ ok: true, message: 'Vinculación eliminada.' })
+  }
+
+  return json({ error: 'Acción no reconocida. Usá: validate | link | unlink' }, { status: 400 })
 }
