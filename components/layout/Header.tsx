@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Bell, LogOut, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ContribuyenteSelector } from '@/components/contribuyentes/ContribuyenteSelector'
 
 interface HeaderProps {
   userName?: string
@@ -83,7 +82,6 @@ export function Header({ userName, unreadNotifications = 0, onMenuToggle, onSign
       </div>
 
       <div className="flex items-center gap-2">
-        <ContribuyenteSelector />
         <Link
           href="/domicilio-fiscal"
           className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-lg"

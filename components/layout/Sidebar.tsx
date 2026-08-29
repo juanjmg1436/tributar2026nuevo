@@ -9,7 +9,7 @@ import {
   LayoutDashboard, User, FileText, Settings, CreditCard,
   Mail, ShoppingBag, Receipt, LogOut, ChevronRight,
   Lock, BookOpen, MapPin,
-  Users, Wallet, Trophy,
+  Wallet, Trophy,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -40,7 +40,6 @@ export function Sidebar({ progress, onSignOut, userName, mobileOpen, onClose, un
 
   const navItems: NavItem[] = [
     { href: '/dashboard',    label: 'Panel principal',    icon: <LayoutDashboard className="w-4 h-4" />, locked: false },
-    { href: '/contribuyentes', label: 'Mis contribuyentes', icon: <Users className="w-4 h-4" />,         locked: false },
   ]
 
   const fiscalSections: NavSection[] = [

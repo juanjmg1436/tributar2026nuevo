@@ -16,7 +16,7 @@ import { NotificationCard } from '@/components/dashboard/NotificationCard'
 import type { ProgressDetail } from '@/hooks/useProgress'
 import {
   ArrowRight, CreditCard, Receipt, ShoppingBag, FileText,
-  Users, Settings, Info, Trophy,
+  Settings, Info, Trophy,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -72,7 +72,7 @@ export default function DashboardPage() {
             <p className="text-sm font-bold text-amber-800">¿Qué régimen vas a practicar?</p>
             <p className="text-xs text-amber-700 mt-0.5 mb-3">
               Elegí tu situación fiscal para desbloquear la ruta de misiones.
-              Con dos contribuyentes podés practicar ambas rutas simultáneamente.
+              Si después querés recorrer la otra, podés cambiar de régimen cuando quieras.
             </p>
             <div className="flex gap-2 flex-wrap">
               <Link href="/administrador-relaciones" className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
@@ -184,8 +184,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="mt-3 pt-3 border-t border-slate-100">
-              <Link href="/contribuyentes" className="text-xs text-primary-600 hover:underline flex items-center gap-1">
-                <Users className="w-3 h-3" /> Gestionar contribuyentes
+              <Link href="/administrador-relaciones" className="text-xs text-primary-600 hover:underline flex items-center gap-1">
+                <Settings className="w-3 h-3" /> Cambiar de régimen fiscal
               </Link>
             </div>
           </Card>
@@ -200,7 +200,6 @@ export default function DashboardPage() {
                 { href: '/puntos-venta',              label: 'Puntos de venta',  icon: <ShoppingBag className="w-4 h-4" />,  locked: !progress?.registrationComplete },
                 { href: '/administrador-relaciones',  label: 'Regímenes',        icon: <Settings className="w-4 h-4" />,     locked: !progress?.registrationComplete },
                 { href: '/historial',                 label: 'Historial',        icon: <FileText className="w-4 h-4" />,     locked: false },
-                { href: '/contribuyentes',            label: 'Contribuyentes',   icon: <Users className="w-4 h-4" />,        locked: false },
               ].map((item) => (
                 item.locked ? (
                   <div key={item.href} className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-slate-50 opacity-40 cursor-not-allowed text-center">
