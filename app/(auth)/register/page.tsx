@@ -12,7 +12,9 @@ import { BookOpen, Eye, EyeOff, AlertCircle, CheckCircle2, Mail } from 'lucide-r
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
-  email: z.string().email('Ingresá un email válido'),
+  // Se normaliza antes de validar: el alumno puede escribirlo en mayúsculas
+  // o con un espacio de más y la cuenta sigue siendo la misma.
+  email: z.string().trim().toLowerCase().email('Ingresá un email válido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
   confirmPassword: z.string(),
   institution: z.string().optional(),
@@ -159,6 +161,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               label="Email"
+              className="lowercase"
               placeholder="tu@email.com"
               error={errors.email?.message}
               required
@@ -217,6 +220,15 @@ export default function RegisterPage() {
               <Link href="/login" className="text-primary-700 font-semibold hover:underline">
                 Iniciá sesión aquí
               </Link>
+            </p>
+          </div>
+
+          <div className="mt-5 p-4 bg-red-50 rounded-xl border border-red-200">
+            <p className="text-xs font-bold text-red-800 mb-1">Guardá tu contraseña</p>
+            <p className="text-xs text-red-700 leading-relaxed">
+              Esta app todavía no envía correos de recuperación: si perdés tu contraseña
+              no podemos restablecerla, y perderías el acceso a tu cuenta y a todo lo que
+              hayas cargado. Anotala junto con el email con el que te registrás.
             </p>
           </div>
 

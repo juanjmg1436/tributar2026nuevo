@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/Input'
 import { BookOpen, Eye, EyeOff, AlertCircle, Mail } from 'lucide-react'
 
 const loginSchema = z.object({
-  email: z.string().email('Ingresá un email válido'),
+  // Se normaliza antes de validar: el alumno puede escribirlo en mayúsculas
+  // o con un espacio de más y la cuenta sigue siendo la misma.
+  email: z.string().trim().toLowerCase().email('Ingresá un email válido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 })
 
@@ -138,7 +140,7 @@ function LoginForm() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <Input
             {...register('email')}
-            id="email" type="email" label="Email"
+            id="email" type="email" label="Email" className="lowercase"
             placeholder="tu@email.com"
             error={errors.email?.message}
             required autoComplete="email"
@@ -170,6 +172,15 @@ function LoginForm() {
             <Link href="/register" className="text-primary-700 font-semibold hover:underline">
               Registrate aquí
             </Link>
+          </p>
+        </div>
+
+        <div className="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
+          <p className="text-xs font-bold text-red-800 mb-1">Guardá tu contraseña</p>
+          <p className="text-xs text-red-700 leading-relaxed">
+            Esta app todavía no envía correos de recuperación: si perdés tu contraseña
+            no podemos restablecerla, y perderías el acceso a tu cuenta y a todo lo que
+            hayas cargado. Anotala junto con el email con el que te registrás.
           </p>
         </div>
 
