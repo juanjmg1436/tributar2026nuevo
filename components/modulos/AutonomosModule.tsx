@@ -545,7 +545,7 @@ export function AutonomosModule() {
                     <p className="text-[10px] text-slate-500 mb-2">Simula el pago de los aportes.</p>
                     {!isPaid && isGenerated && (
                       <div className="mb-2 space-y-2">
-                        <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
+                        <BilleteraFiscal compact montoSugerido={selectedPay ? selectedPay.total_amount - balance : undefined} onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
                         {saldoInsuficiente !== null && (
                           <div className="p-2 bg-amber-50 border border-amber-300 rounded-lg">
                             <p className="text-[10px] font-bold text-amber-800">
@@ -559,7 +559,7 @@ export function AutonomosModule() {
                       </div>
                     )}
                     <Button size="sm" onClick={handlePay} loading={saving}
-                      disabled={!isGenerated || isPaid} className="w-full">
+                      disabled={!isGenerated || isPaid || (!!selectedPay && balance < selectedPay.total_amount)} className="w-full">
                       <CreditCard className="w-3 h-3 mr-1" />
                       {isPaid ? 'Pagado ✓' : 'Pagar ahora'}
                     </Button>

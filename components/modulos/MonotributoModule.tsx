@@ -255,7 +255,7 @@ export function MonotributoModule() {
               </p>
             </div>
           </div>
-          <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
+          <BilleteraFiscal compact montoSugerido={saldoInsuficiente ?? undefined} onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
           <p className="text-xs text-amber-600">Cargá saldo y reintentá el pago.</p>
         </div>
       )}
@@ -637,13 +637,13 @@ export function MonotributoModule() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
+                  <BilleteraFiscal compact montoSugerido={moraInfo ? moraInfo.totalWithMora - balance : undefined} onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
                   {moraInfo && balance < moraInfo.totalWithMora && (
                     <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
                       ⚠ Saldo insuficiente. Cargá saldo arriba o pagá con otro método.
                     </p>
                   )}
-                  <Button onClick={handlePayQuota} loading={saving}>
+                  <Button onClick={handlePayQuota} loading={saving} disabled={!!moraInfo && balance < moraInfo.totalWithMora}>
                     <CreditCard className="w-4 h-4 mr-2" />
                     Pagar {moraInfo ? formatCurrency(moraInfo.totalWithMora) : '...'}
                     {moraInfo && moraInfo.daysLate > 0 && ' (con mora)'}

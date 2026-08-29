@@ -227,7 +227,7 @@ export default function DDJJDetailPage() {
                 Tu Billetera Fiscal no tiene saldo suficiente para cubrir el pago.
                 Cargá al menos <strong>{formatCurrency(saldoInsuficiente)}</strong> y volvé a pagar.
               </p>
-              <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
+              <BilleteraFiscal compact montoSugerido={saldoInsuficiente ?? undefined} onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
             </div>
           </div>
         </div>

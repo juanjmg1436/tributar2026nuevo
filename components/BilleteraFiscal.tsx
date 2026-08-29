@@ -32,9 +32,16 @@ interface Props {
    * y niega el pago aunque el chip ya muestre el saldo nuevo.
    */
   onSaldoCargado?: () => void
+  /**
+   * Cuánto falta para poder pagar la obligación que se está mirando.
+   * Prellena el monto y ofrece un atajo: los botones rápidos llegan hasta
+   * $500K y un F.931 puede superarlo, así que sin esto hay que tipear el
+   * número a mano.
+   */
+  montoSugerido?: number
 }
 
-export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Props) {
+export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado, montoSugerido }: Props) {
   const { balance, movimientos, loading, cargarSaldo } = useBilletera()
   const { vencimientos, loading: vencLoading } = useVencimientos()
   const pendientes = vencimientos.filter(v => !v.pagado)
@@ -49,7 +56,12 @@ export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Pr
   const [refNum, setRefNum]           = useState('')
   const [errorCarga, setErrorCarga]   = useState<string | null>(null)
 
-  function openModal() { setShowModal(true); setDone(false); setMonto(''); setErrorCarga(null) }
+  const faltante = montoSugerido && montoSugerido > 0 ? Math.ceil(montoSugerido) : null
+
+  function openModal() {
+    setShowModal(true); setDone(false); setErrorCarga(null)
+    setMonto(faltante ? String(faltante) : '')
+  }
   function closeModal() { setShowModal(false); setDone(false); setMonto(''); setErrorCarga(null) }
 
   async function handleCargar() {
@@ -93,7 +105,7 @@ export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Pr
           <CargarSaldoModal
             metodo={metodo} setMetodo={setMetodo}
             monto={monto} setMonto={setMonto}
-            confirming={confirming} done={done} refNum={refNum} error={errorCarga}
+            confirming={confirming} done={done} refNum={refNum} error={errorCarga} faltante={faltante}
             onCargar={handleCargar}
             onClose={closeModal}
           />
@@ -227,7 +239,7 @@ export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Pr
         <CargarSaldoModal
           metodo={metodo} setMetodo={setMetodo}
           monto={monto} setMonto={setMonto}
-          confirming={confirming} done={done} refNum={refNum} error={errorCarga}
+          confirming={confirming} done={done} refNum={refNum} error={errorCarga} faltante={faltante}
           onCargar={handleCargar}
           onClose={closeModal}
         />
@@ -239,12 +251,13 @@ export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Pr
 // ── Modal de carga de saldo ────────────────────────────────────────────────────
 function CargarSaldoModal({
   metodo, setMetodo, monto, setMonto,
-  confirming, done, refNum, error, onCargar, onClose,
+  confirming, done, refNum, error, faltante, onCargar, onClose,
 }: {
   metodo: MetodoCarga; setMetodo: (m: MetodoCarga) => void
   monto: string; setMonto: (v: string) => void
   confirming: boolean; done: boolean; refNum: string
   error: string | null
+  faltante: number | null
   onCargar: () => void; onClose: () => void
 }) {
   return (
@@ -336,6 +349,12 @@ function CargarSaldoModal({
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   placeholder="0.00" value={monto}
                   onChange={e => setMonto(e.target.value)} />
+                {faltante && (
+                  <button onClick={() => setMonto(String(faltante))}
+                    className="w-full mt-1.5 text-[11px] py-1.5 bg-violet-100 hover:bg-violet-200 text-violet-800 rounded font-bold transition-colors">
+                    Cargar lo que falta — {formatCurrency(faltante)}
+                  </button>
+                )}
                 <div className="flex gap-1 mt-1.5">
                   {[50000, 100000, 200000, 500000].map(v => (
                     <button key={v} onClick={() => setMonto(String(v))}

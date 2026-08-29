@@ -575,18 +575,18 @@ export function RelacionesLaboralesModule() {
                             </p>
                           </div>
                         </div>
-                        <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
-                        {saldoInsuficiente !== null && balance < vep.total_amount && (
+                        <BilleteraFiscal compact montoSugerido={vep.total_amount - balance} onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
+                        {balance < vep.total_amount && (
                           <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-[10px] font-bold text-red-700">
-                              Saldo insuficiente — faltan {formatCurrency(saldoInsuficiente)}
+                              Saldo insuficiente — faltan {formatCurrency(vep.total_amount - balance)}
                             </p>
                             <p className="text-[10px] text-red-600 mt-0.5">
                               Mora por pago tardío del F.931: <strong>interés resarcitorio 3% mensual</strong> (0,1% diario) — Art. 37 Ley 11.683
                             </p>
                           </div>
                         )}
-                        <Button size="sm" onClick={() => handlePayVep(vep)} loading={busy}
+                        <Button size="sm" onClick={() => handlePayVep(vep)} loading={busy} disabled={balance < vep.total_amount}
                           className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
                           <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Pagar VEP — {formatCurrency(vep.total_amount)}
                         </Button>
