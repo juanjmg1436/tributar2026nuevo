@@ -40,18 +40,27 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
   const [confirming, setConfirming]   = useState(false)
   const [done, setDone]               = useState(false)
   const [refNum, setRefNum]           = useState('')
+  const [errorCarga, setErrorCarga]   = useState<string | null>(null)
 
-  function openModal() { setShowModal(true); setDone(false); setMonto('') }
+  function openModal() { setShowModal(true); setDone(false); setMonto(''); setErrorCarga(null) }
+  function closeModal() { setShowModal(false); setDone(false); setMonto(''); setErrorCarga(null) }
 
   async function handleCargar() {
     const n = parseFloat(monto.replace(/\./g,'').replace(',','.'))
     if (!n || n <= 0) return
     setConfirming(true)
-    const ref = `TRF-${Date.now().toString().slice(-10)}`
-    setRefNum(ref)
-    await cargarSaldo(n, metodo)
-    setConfirming(false)
-    setDone(true)
+    setErrorCarga(null)
+    try {
+      await cargarSaldo(n, metodo)
+      // La referencia y la pantalla de éxito recién ahora: antes se mostraban
+      // aunque la carga no hubiera llegado a la base.
+      setRefNum(`TRF-${Date.now().toString().slice(-10)}`)
+      setDone(true)
+    } catch (e) {
+      setErrorCarga(e instanceof Error ? e.message : 'No se pudo cargar el saldo.')
+    } finally {
+      setConfirming(false)
+    }
   }
 
   // ── Chip compacto (para usar dentro de módulos de pago) ───────────────────
@@ -76,9 +85,9 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
           <CargarSaldoModal
             metodo={metodo} setMetodo={setMetodo}
             monto={monto} setMonto={setMonto}
-            confirming={confirming} done={done} refNum={refNum}
+            confirming={confirming} done={done} refNum={refNum} error={errorCarga}
             onCargar={handleCargar}
-            onClose={() => { setShowModal(false); setDone(false); setMonto('') }}
+            onClose={closeModal}
           />
         )}
       </>
@@ -210,9 +219,9 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
         <CargarSaldoModal
           metodo={metodo} setMetodo={setMetodo}
           monto={monto} setMonto={setMonto}
-          confirming={confirming} done={done} refNum={refNum}
+          confirming={confirming} done={done} refNum={refNum} error={errorCarga}
           onCargar={handleCargar}
-          onClose={() => { setShowModal(false); setDone(false); setMonto('') }}
+          onClose={closeModal}
         />
       )}
     </div>
@@ -222,11 +231,12 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
 // ── Modal de carga de saldo ────────────────────────────────────────────────────
 function CargarSaldoModal({
   metodo, setMetodo, monto, setMonto,
-  confirming, done, refNum, onCargar, onClose,
+  confirming, done, refNum, error, onCargar, onClose,
 }: {
   metodo: MetodoCarga; setMetodo: (m: MetodoCarga) => void
   monto: string; setMonto: (v: string) => void
   confirming: boolean; done: boolean; refNum: string
+  error: string | null
   onCargar: () => void; onClose: () => void
 }) {
   return (
@@ -327,6 +337,16 @@ function CargarSaldoModal({
                   ))}
                 </div>
               </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2 items-start">
+                  <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-red-700">
+                    <p className="font-bold">No se pudo acreditar el saldo</p>
+                    <p className="mt-0.5 leading-relaxed">{error}</p>
+                  </div>
+                </div>
+              )}
 
               <Button onClick={onCargar} loading={confirming}
                 className="w-full bg-violet-700 hover:bg-violet-800 text-white"

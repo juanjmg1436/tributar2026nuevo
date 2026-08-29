@@ -1,3 +1,8 @@
+-- ⚠️ OBSOLETO — NO EJECUTAR. Nunca se aplicó y no funciona sobre el esquema
+-- real (user_id es la PRIMARY KEY, no una UNIQUE billetera_fiscal_user_id_key).
+-- Sustituido por migration-billetera-per-profile-v2.sql, que es la que está
+-- aplicada en producción desde el 2026-08-28.
+
 -- ============================================================
 -- MIGRACIÓN: Billetera Fiscal aislada por contribuyente
 -- TRIBUT.AR — SIMULADOR EDUCATIVO
