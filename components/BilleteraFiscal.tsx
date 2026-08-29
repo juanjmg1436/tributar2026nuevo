@@ -25,9 +25,16 @@ interface Props {
   onClose?: () => void
   /** Vista compacta (chip de saldo) vs completa */
   compact?: boolean
+  /**
+   * Se llama cuando la carga de saldo se acreditó de verdad.
+   * Cada módulo de pago tiene su propia instancia de useBilletera(), distinta
+   * de la de este chip: sin este aviso el módulo sigue viendo el saldo viejo
+   * y niega el pago aunque el chip ya muestre el saldo nuevo.
+   */
+  onSaldoCargado?: () => void
 }
 
-export function BilleteraFiscal({ onClose, compact = false }: Props) {
+export function BilleteraFiscal({ onClose, compact = false, onSaldoCargado }: Props) {
   const { balance, movimientos, loading, cargarSaldo } = useBilletera()
   const { vencimientos, loading: vencLoading } = useVencimientos()
   const pendientes = vencimientos.filter(v => !v.pagado)
@@ -56,6 +63,7 @@ export function BilleteraFiscal({ onClose, compact = false }: Props) {
       // aunque la carga no hubiera llegado a la base.
       setRefNum(`TRF-${Date.now().toString().slice(-10)}`)
       setDone(true)
+      onSaldoCargado?.()
     } catch (e) {
       setErrorCarga(e instanceof Error ? e.message : 'No se pudo cargar el saldo.')
     } finally {

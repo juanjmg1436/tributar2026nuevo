@@ -33,7 +33,7 @@ export default function DDJJDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useUser()
   const supabase = createClient()
-  const { balance, debitarPago } = useBilletera()
+  const { balance, debitarPago, reload: reloadBilletera } = useBilletera()
 
   const [ddjj, setDDJJ]       = useState<ProvIIBBDDJJ | null>(null)
   const [items, setItems]     = useState<ProvIIBBItem[]>([])
@@ -227,7 +227,7 @@ export default function DDJJDetailPage() {
                 Tu Billetera Fiscal no tiene saldo suficiente para cubrir el pago.
                 Cargá al menos <strong>{formatCurrency(saldoInsuficiente)}</strong> y volvé a pagar.
               </p>
-              <BilleteraFiscal compact />
+              <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
             </div>
           </div>
         </div>

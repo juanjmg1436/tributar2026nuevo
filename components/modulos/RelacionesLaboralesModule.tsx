@@ -78,7 +78,7 @@ const EMPTY_ALTA = {
 export function RelacionesLaboralesModule() {
   const { user } = useUser()
   const supabase = createClient()
-  const { balance, debitarPago } = useBilletera()
+  const { balance, debitarPago, reload: reloadBilletera } = useBilletera()
 
   const [tab, setTab]           = useState<Tab>('vincular')
   const [loading, setLoading]   = useState(true)
@@ -575,7 +575,7 @@ export function RelacionesLaboralesModule() {
                             </p>
                           </div>
                         </div>
-                        <BilleteraFiscal compact />
+                        <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
                         {saldoInsuficiente !== null && balance < vep.total_amount && (
                           <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-[10px] font-bold text-red-700">

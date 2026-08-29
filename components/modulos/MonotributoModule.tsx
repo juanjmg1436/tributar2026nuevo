@@ -39,7 +39,7 @@ const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 export function MonotributoModule() {
   const { user } = useUser()
   const supabase = createClient()
-  const { balance, debitarPago } = useBilletera()
+  const { balance, debitarPago, reload: reloadBilletera } = useBilletera()
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -255,7 +255,7 @@ export function MonotributoModule() {
               </p>
             </div>
           </div>
-          <BilleteraFiscal compact />
+          <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
           <p className="text-xs text-amber-600">Cargá saldo y reintentá el pago.</p>
         </div>
       )}
@@ -637,7 +637,7 @@ export function MonotributoModule() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <BilleteraFiscal compact />
+                  <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
                   {moraInfo && balance < moraInfo.totalWithMora && (
                     <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
                       ⚠ Saldo insuficiente. Cargá saldo arriba o pagá con otro método.

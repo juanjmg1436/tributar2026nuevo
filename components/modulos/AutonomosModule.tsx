@@ -63,7 +63,7 @@ function CatBadge({ code }: { code: string }) {
 export function AutonomosModule() {
   const { user } = useUser()
   const supabase  = createClient()
-  const { balance, debitarPago } = useBilletera()
+  const { balance, debitarPago, reload: reloadBilletera } = useBilletera()
   const [tab, setTab]           = useState<Tab>('situacion')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]         = useState(false)
@@ -545,7 +545,7 @@ export function AutonomosModule() {
                     <p className="text-[10px] text-slate-500 mb-2">Simula el pago de los aportes.</p>
                     {!isPaid && isGenerated && (
                       <div className="mb-2 space-y-2">
-                        <BilleteraFiscal compact />
+                        <BilleteraFiscal compact onSaldoCargado={() => { reloadBilletera(); setSaldoInsuficiente(null) }} />
                         {saldoInsuficiente !== null && (
                           <div className="p-2 bg-amber-50 border border-amber-300 rounded-lg">
                             <p className="text-[10px] font-bold text-amber-800">
