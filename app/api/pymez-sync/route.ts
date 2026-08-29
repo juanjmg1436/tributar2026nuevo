@@ -248,17 +248,27 @@ export async function GET(req: NextRequest) {
 
     const { data: sales, error: salesErr } = await db
       .from('sales')
-      .select('total, date')
+      .select('total, iva_rate, date')
       .eq('company_id', company.id)
       .gte('date', dateFrom)
       .neq('status', 'anulado')
 
     if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
 
+    // El parametro de recategorizacion son los ingresos, y el IVA no es ingreso:
+    // es un impuesto que la empresa percibe y le debe al fisco. Se acumula el neto,
+    // que es lo mismo que PyMEZ 360 acredita en la cuenta 4.1.1 Ventas.
+    // Si la empresa factura como monotributista (sin IVA discriminado), neto = bruto
+    // y el total no cambia; si factura con IVA, deja de estar inflado.
     const monthlyMap: Record<string, number> = {}
+    let brutoTotal = 0
+    let ivaTotal   = 0
     for (const s of sales ?? []) {
+      const { bruto, iva, neto } = desglosarIva(s.total, s.iva_rate)
       const period = s.date.substring(0, 7)
-      monthlyMap[period] = (monthlyMap[period] ?? 0) + (s.total ?? 0)
+      monthlyMap[period] = (monthlyMap[period] ?? 0) + neto
+      brutoTotal += bruto
+      ivaTotal   += iva
     }
 
     const annualTotal = Object.values(monthlyMap).reduce((sum, v) => sum + v, 0)
@@ -271,7 +281,10 @@ export async function GET(req: NextRequest) {
       company_name:            company.name,
       company_cuit:            company.cuit,
       microemprendimiento_mode: (company as any).microemprendimiento_mode ?? false,
+      // annual_total es el ingreso neto: es el que se compara contra el limite.
       annual_total:            Math.round(annualTotal * 100) / 100,
+      annual_total_facturado:  Math.round(brutoTotal  * 100) / 100,
+      annual_iva:              Math.round(ivaTotal    * 100) / 100,
       invoice_count:           sales?.length ?? 0,
       months,
     })

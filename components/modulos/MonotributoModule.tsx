@@ -55,7 +55,7 @@ export function MonotributoModule() {
   // PyMEZ 360 sync — recategorización
   const [pymezToken, setPymezToken]     = useState('')
   const [pymezSyncing, setPymezSyncing] = useState(false)
-  const [pymezData, setPymezData]       = useState<{ annual_total: number; company_name: string; microemprendimiento_mode: boolean; months: {period:string;total:number}[] } | null>(null)
+  const [pymezData, setPymezData]       = useState<{ annual_total: number; annual_total_facturado?: number; annual_iva?: number; company_name: string; microemprendimiento_mode: boolean; months: {period:string;total:number}[] } | null>(null)
   const [pymezError, setPymezError]     = useState<string | null>(null)
 
   // Wizard
@@ -483,9 +483,15 @@ export function MonotributoModule() {
                   <div className="bg-white rounded-xl border border-violet-100 p-3">
                     <p className="text-xs font-semibold text-violet-700 mb-1">{pymezData.company_name} — últimos 12 meses</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600">Ingreso anual real</span>
+                      <span className="text-xs text-slate-600">Ingreso anual real <span className="text-slate-400">(neto)</span></span>
                       <span className="text-sm font-black text-slate-800">{formatCurrency(pymezData.annual_total)}</span>
                     </div>
+                    {!!pymezData.annual_iva && pymezData.annual_iva > 0 && (
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                        Facturaste {formatCurrency(pymezData.annual_total_facturado ?? 0)}, pero {formatCurrency(pymezData.annual_iva)} es
+                        IVA débito: lo percibís para el fisco, no es ingreso tuyo. El límite de categoría se mide sobre el neto.
+                      </p>
+                    )}
                     <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className={cn('h-full rounded-full',
