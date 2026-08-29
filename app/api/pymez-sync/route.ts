@@ -3,6 +3,21 @@ import { createClient } from '@supabase/supabase-js'
 
 const PYMEZ_URL  = process.env.PYMEZ360_SUPABASE_URL
 const PYMEZ_KEY  = process.env.PYMEZ360_SUPABASE_SERVICE_KEY
+/**
+ * En PyMEZ 360, sales.total y purchases.total son el importe BRUTO (IVA
+ * incluido). Así lo trata su propio motor contable (lib/accounting/entries.ts):
+ * extrae el IVA de adentro con total * rate / (1 + rate) y acredita el neto en
+ * la cuenta 4.1.1 Ventas. Replicar ese mismo desglose acá es lo que hace que la
+ * base imponible coincida con el saldo del libro mayor de Ventas.
+ */
+function desglosarIva(total: number | null, ivaRate: number | null) {
+  const bruto = total ?? 0
+  const raw   = ivaRate ?? 0
+  const rate  = raw >= 1 ? raw / 100 : raw   // acepta 21 o 0.21
+  const iva   = rate > 0 ? Math.round(bruto * rate / (1 + rate) * 100) / 100 : 0
+  return { bruto, rate, iva, neto: Math.round((bruto - iva) * 100) / 100 }
+}
+
 function pymez() {
   if (!PYMEZ_URL || !PYMEZ_KEY) return null
   return createClient(PYMEZ_URL, PYMEZ_KEY, { auth: { persistSession: false } })
@@ -90,9 +105,7 @@ export async function GET(req: NextRequest) {
     for (const s of suppliersRes.data ?? []) suppMap[s.id] = s.name
 
     const invoices = (salesRes.data ?? []).map(s => {
-      const net    = s.total ?? 0
-      const rate   = s.iva_rate ?? 0
-      const ivaAmt = Math.round(net * rate * 100) / 100
+      const { rate, iva: ivaAmt, neto: net, bruto } = desglosarIva(s.total, s.iva_rate)
       return {
         id:            `pymez_${s.id}`,
         period,
@@ -103,16 +116,14 @@ export async function GET(req: NextRequest) {
         subtotal:      Math.round(net * 100) / 100,
         iva_rate:      rate,
         iva_amount:    ivaAmt,
-        total:         Math.round((net + ivaAmt) * 100) / 100,
+        total:         bruto,
         status:        'active',
         source:        'pymez360' as const,
       }
     })
 
     const purchases = (purchasesRes.data ?? []).map(p => {
-      const net    = p.total ?? 0
-      const rate   = p.iva_rate ?? 0
-      const ivaAmt = Math.round(net * rate * 100) / 100
+      const { rate, iva: ivaAmt, neto: net, bruto } = desglosarIva(p.total, p.iva_rate)
       const type   = docTypeToInvoiceType(p.document_type)
       return {
         id:                `pymez_${p.id}`,
@@ -125,7 +136,7 @@ export async function GET(req: NextRequest) {
         subtotal:          Math.round(net * 100) / 100,
         iva_rate:          rate,
         iva_amount:        ivaAmt,
-        total:             Math.round((net + ivaAmt) * 100) / 100,
+        total:             bruto,
         is_iva_computable: type === 'A' && rate > 0,
         status:            'active',
         source:            'pymez360' as const,
@@ -148,7 +159,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // ── 3. Resumen IIBB: Base imponible = Ventas brutas (con IVA) − IVA Débito Fiscal ──
+  // ── 3. Resumen IIBB: base imponible = neto de ventas = saldo del mayor de 4.1.1 Ventas ──
   if (action === 'iibb-summary') {
     const token  = searchParams.get('token')?.trim().toUpperCase()
     const period = searchParams.get('period')
@@ -184,23 +195,20 @@ export async function GET(req: NextRequest) {
 
     if (salesErr) return NextResponse.json({ error: salesErr.message }, { status: 500 })
 
-    // En PyMEZ 360, sales.total es el precio BASE sin IVA.
-    // iva_rate puede ser decimal (0.21) o porcentaje entero (21), se normaliza abajo.
-    // Base IIBB = Ventas brutas (base + IVA) − IVA Débito Fiscal = sales.total
+    // sales.total ya viene con el IVA adentro, así que el IVA se extrae, no se suma.
+    // La base imponible resultante es el neto, que es exactamente lo que PyMEZ 360
+    // acredita en la cuenta 4.1.1 Ventas: por eso coincide con el saldo del mayor.
     // Fórmula explícita para el alumno:
-    //   totalBruto = SUM(total * (1 + iva_rate))
-    //   ivaDebito  = SUM(total * iva_rate)
-    //   baseIIBB   = totalBruto − ivaDebito = SUM(total)
+    //   ivaDebito = SUM(total × rate ÷ (1 + rate))
+    //   baseIIBB  = SUM(total) − ivaDebito
     let totalBruto = 0
     let ivaDebito  = 0
     for (const s of sales ?? []) {
-      const base = s.total ?? 0
-      // normalizar: si iva_rate >= 1 es porcentaje entero (e.g. 21 → 0.21)
-      const rate = (s.iva_rate ?? 0) >= 1 ? (s.iva_rate / 100) : (s.iva_rate ?? 0)
-      totalBruto += base * (1 + rate)
-      ivaDebito  += base * rate
+      const { bruto, iva } = desglosarIva(s.total, s.iva_rate)
+      totalBruto += bruto
+      ivaDebito  += iva
     }
-    const baseImponible = totalBruto - ivaDebito // = SUM(sales.total)
+    const baseImponible = totalBruto - ivaDebito
 
     return NextResponse.json({
       ok:                true,
