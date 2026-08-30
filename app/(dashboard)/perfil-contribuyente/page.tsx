@@ -16,7 +16,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useUser } from '@/hooks/useUser'
 import { PROVINCES } from '@/lib/constants/provinces'
 import { ACTIVITIES } from '@/lib/constants/activities'
-import { generateDemoCUIT } from '@/lib/utils'
+import { generateDemoCUIT, formatCUIT, validateCUIT } from '@/lib/utils'
 import { User, Building2, CheckCircle2, RefreshCw, Info } from 'lucide-react'
 import type { TaxpayerProfile } from '@/types'
 
@@ -45,6 +45,7 @@ export default function PerfilContribuyentePage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cuit, setCuit] = useState<string>('')
+  const [cuitError, setCuitError] = useState<string | null>(null)
   const supabase = createClient()
 
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
@@ -97,11 +98,30 @@ export default function PerfilContribuyentePage() {
 
   function regenerateCuit() {
     setCuit(generateDemoCUIT(subjectType))
+    setCuitError(null)
+  }
+
+  function onCuitChange(value: string) {
+    setCuit(formatCUIT(value))
+    setCuitError(null)
   }
 
   async function onSubmit(data: FormData) {
     if (!user) return
     try {
+      // El CUIT ahora se puede escribir a mano, para que coincida con el de
+      // PyMEZ 360 y Sueldos 360. Se valida el dígito verificador: es el mismo
+      // control que hace ARCA, y el generador automático ya lo respeta.
+      const chequeo = validateCUIT(cuit)
+      if (!chequeo.valid) {
+        setCuitError(
+          chequeo.expected === undefined
+            ? 'El CUIT debe tener 11 dígitos, con el formato XX-XXXXXXXX-X.'
+            : `El dígito verificador no corresponde: para ${cuit.replace(/D/g, '').slice(0, 10)} tendría que terminar en ${chequeo.expected}.`,
+        )
+        return
+      }
+      setCuitError(null)
       setSaving(true)
       setError(null)
 
@@ -126,7 +146,6 @@ export default function PerfilContribuyentePage() {
         municipality: data.municipality,
         postal_code: data.postal_code,
         activity_start_date: data.activity_start_date,
-        status: 'incomplete' as const,
       }
 
       if (existing) {
@@ -139,7 +158,7 @@ export default function PerfilContribuyentePage() {
       } else {
         const { data: newProfile, error: insertError } = await supabase
           .from('taxpayer_profiles')
-          .insert({ ...payload, slot: 1, alias: payload.entity_name, is_active: true })
+          .insert({ ...payload, status: 'incomplete', slot: 1, alias: payload.entity_name, is_active: true })
           .select()
           .single()
         if (insertError) throw insertError
@@ -252,21 +271,27 @@ export default function PerfilContribuyentePage() {
             />
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                CUIT simulado <span className="text-slate-400 font-normal">(generado automáticamente)</span>
+                CUIT simulado <span className="text-slate-400 font-normal">(podés editarlo)</span>
               </label>
               <div className="flex gap-2 items-center">
-                <div className="flex-1 px-3.5 py-2.5 bg-slate-100 border border-slate-300 rounded-lg text-sm font-mono text-slate-700">
-                  {cuit}
-                </div>
-                {!existing && (
-                  <Button type="button" variant="outline" size="sm" onClick={regenerateCuit} className="flex-shrink-0">
-                    <RefreshCw className="w-4 h-4" />
-                    Regenerar
-                  </Button>
-                )}
+                <input
+                  value={cuit}
+                  onChange={(e) => onCuitChange(e.target.value)}
+                  inputMode="numeric"
+                  maxLength={13}
+                  placeholder="XX-XXXXXXXX-X"
+                  className={`flex-1 px-3.5 py-2.5 bg-white border rounded-lg text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 ${
+                    cuitError ? 'border-red-400 focus:ring-red-400' : 'border-slate-300 focus:ring-primary-500'
+                  }`}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={regenerateCuit} className="flex-shrink-0">
+                  <RefreshCw className="w-4 h-4" />
+                  Generar
+                </Button>
               </div>
+              {cuitError && <p className="mt-1.5 text-xs text-red-600">{cuitError}</p>}
               <p className="mt-1.5 text-xs text-slate-500">
-                El CUIT (Clave Única de Identificación Tributaria) es el número que identifica al contribuyente. Este es un número DEMO sin validez real.
+                El CUIT (Clave Única de Identificación Tributaria) identifica al contribuyente. Es un número DEMO sin validez real, pero se controla el dígito verificador igual que en la realidad. Editalo si necesitás que coincida con el de PyMEZ 360 o Sueldos 360.
               </p>
             </div>
           </div>

@@ -40,6 +40,18 @@ function calculateCUITVerifier(cuit: string): number {
   return remainder === 0 ? 0 : 11 - remainder
 }
 
+/**
+ * Valida un CUIT completo: 11 dígitos y dígito verificador correcto.
+ * Cuando no coincide devuelve el dígito que correspondería, para poder
+ * sugerirlo en pantalla — que es justamente lo que enseña el control.
+ */
+export function validateCUIT(value: string): { valid: boolean; expected?: number } {
+  const digits = value.replace(/D/g, '')
+  if (digits.length !== 11) return { valid: false }
+  const expected = calculateCUITVerifier(digits.slice(0, 10))
+  return { valid: expected === Number(digits[10]), expected }
+}
+
 export function formatCUIT(value: string): string {
   const digits = value.replace(/\D/g, '')
   if (digits.length <= 2) return digits
