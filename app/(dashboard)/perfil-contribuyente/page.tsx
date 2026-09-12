@@ -117,7 +117,7 @@ export default function PerfilContribuyentePage() {
         setCuitError(
           chequeo.expected === undefined
             ? 'El CUIT debe tener 11 dígitos, con el formato XX-XXXXXXXX-X.'
-            : `El dígito verificador no corresponde: para ${cuit.replace(/D/g, '').slice(0, 10)} tendría que terminar en ${chequeo.expected}.`,
+            : `El dígito verificador no corresponde: para ${cuit.replace(/\D/g, '').slice(0, 10)} tendría que terminar en ${chequeo.expected}.`,
         )
         return
       }

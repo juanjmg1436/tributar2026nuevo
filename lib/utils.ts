@@ -46,7 +46,7 @@ function calculateCUITVerifier(cuit: string): number {
  * sugerirlo en pantalla — que es justamente lo que enseña el control.
  */
 export function validateCUIT(value: string): { valid: boolean; expected?: number } {
-  const digits = value.replace(/D/g, '')
+  const digits = value.replace(/\D/g, '')
   if (digits.length !== 11) return { valid: false }
   const expected = calculateCUITVerifier(digits.slice(0, 10))
   return { valid: expected === Number(digits[10]), expected }
