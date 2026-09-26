@@ -39,14 +39,19 @@ export function calculateVat(input: VatInput): VatCalculation {
   const perceptions = input.perceptions || 0
   const previousCredit = input.previousCredit || 0
 
-  // IVA determinado = débito - crédito
+  // Saldo tecnico a favor: el credito que excede al debito. No se pide en
+  // devolucion, se traslada al periodo siguiente (art. 24 Ley de IVA).
+  const technicalCredit = Math.max(0, purchasesIvaCredit - salesIvaDebit)
+
+  // Impuesto determinado = debito - credito, nunca negativo
   const ivaDetermined = Math.max(0, salesIvaDebit - purchasesIvaCredit)
 
-  // Saldo neto = determinado - retenciones - percepciones - saldo a favor anterior
-  const netPayable = Math.max(0, ivaDetermined - withholdings - perceptions - previousCredit)
+  // Ingresos ya realizados a cuenta del impuesto
+  const directPayments = withholdings + perceptions + previousCredit
 
-  // Saldo a favor si crédito supera débito
-  const creditBalance = Math.max(0, purchasesIvaCredit + withholdings + perceptions + previousCredit - ivaDetermined)
+  // Solo una de las dos puede ser distinta de cero: o se paga, o queda a favor
+  const netPayable    = Math.max(0, ivaDetermined - directPayments)
+  const creditBalance = technicalCredit + Math.max(0, directPayments - ivaDetermined)
 
   return {
     period: input.period,
