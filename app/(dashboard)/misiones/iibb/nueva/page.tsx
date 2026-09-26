@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PageContainer } from '@/components/layout/PageContainer'
@@ -36,7 +36,7 @@ interface PymezData {
 }
 
 export default function NuevaDDJJPage() {
-  const { user } = useUser()
+  const { user, taxpayerProfile, refresh } = useUser()
   const { taxpayer, loading } = useProvincialTaxpayer(user?.id)
   const regime = useRegime()
   const router = useRouter()
@@ -78,8 +78,62 @@ export default function NuevaDDJJPage() {
   const [pymezError, setPymezError]       = useState<string | null>(null)
   const [cuitMismatch, setCuitMismatch]   = useState(false)
 
-  async function handlePymezImport() {
-    if (!pymezToken.trim() || !period) return
+  // El vinculo con la empresa de PyMEZ 360 vive en el perfil del contribuyente,
+  // asi no hay que pegar el codigo cada vez que se liquida un periodo.
+  const perfil = taxpayerProfile as unknown as {
+    id?: string
+    pymez_sync_token?: string | null
+    pymez_company_name?: string | null
+    pymez_company_cuit?: string | null
+    pymez_linked_at?: string | null
+  } | null
+  const tokenVinculado   = perfil?.pymez_sync_token ?? null
+  const empresaVinculada = perfil?.pymez_company_name ?? null
+
+  async function guardarVinculo(tok: string, datos: PymezData) {
+    if (!perfil?.id) return
+    await (supabase as any)
+      .from('taxpayer_profiles')
+      .update({
+        pymez_sync_token:   tok.toUpperCase(),
+        pymez_company_name: datos.company_name,
+        pymez_company_cuit: datos.company_cuit,
+        pymez_linked_at:    new Date().toISOString(),
+      })
+      .eq('id', perfil.id)
+    await refresh()
+  }
+
+  async function desvincularEmpresa() {
+    if (!perfil?.id) return
+    const confirmado = window.confirm(
+      `Vas a desvincular la empresa "${empresaVinculada ?? ''}" de este contribuyente.
+
+Después vas a tener que pegar el código de sincronización otra vez para importar la facturación.
+
+¿Confirmás? Hacelo sólo si cambiaste de empresa en PyMEZ 360.`
+    )
+    if (!confirmado) return
+    await (supabase as any)
+      .from('taxpayer_profiles')
+      .update({
+        pymez_sync_token:   null,
+        pymez_company_name: null,
+        pymez_company_cuit: null,
+        pymez_linked_at:    null,
+      })
+      .eq('id', perfil.id)
+    periodoImportado.current = ''
+    setPymezData(null)
+    setPymezToken('')
+    setCuitMismatch(false)
+    setOrigin('manual')
+    await refresh()
+  }
+
+  async function handlePymezImport(tokenExplicito?: string) {
+    const token = (tokenExplicito ?? pymezToken).trim()
+    if (!token || !period) return
     setPymezSyncing(true)
     setPymezError(null)
     setPymezData(null)
@@ -87,7 +141,7 @@ export default function NuevaDDJJPage() {
 
     try {
       const res  = await fetch(
-        `/api/pymez-sync?action=iibb-summary&token=${encodeURIComponent(pymezToken.trim())}&period=${period}`,
+        `/api/pymez-sync?action=iibb-summary&token=${encodeURIComponent(token)}&period=${period}`,
       )
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Error al importar')
@@ -113,12 +167,27 @@ export default function NuevaDDJJPage() {
         exempt_revenue: '0',
       }])
       setOrigin('pymez360')
+
+      // Queda vinculada: las proximas liquidaciones importan solas
+      if (!tokenVinculado) await guardarVinculo(token, json)
     } catch (e) {
       setPymezError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
       setPymezSyncing(false)
     }
   }
+
+  // Con la empresa ya vinculada, la importacion es automatica: alcanza con
+  // elegir el periodo. Se hace una vez por periodo para no repetir llamadas.
+  const periodoImportado = useRef('')
+  useEffect(() => {
+    if (!tokenVinculado || !period || pymezSyncing) return
+    if (periodoImportado.current === period) return
+    periodoImportado.current = period
+    setPymezToken(tokenVinculado)
+    void handlePymezImport(tokenVinculado)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenVinculado, period])
 
   // ── Actividades ─────────────────────────────────────────────────────────────
   function addLine() {
@@ -380,24 +449,62 @@ export default function NuevaDDJJPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={pymezToken}
-                onChange={e => setPymezToken(e.target.value.toUpperCase())}
-                placeholder="Código PyMEZ 360 (ej: ABC123)"
-                className="flex-1 px-3 py-2 border border-violet-300 bg-white rounded-lg text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-violet-500"
-                maxLength={8}
-              />
-              <Button
-                onClick={handlePymezImport}
-                loading={pymezSyncing}
-                disabled={!pymezToken.trim() || pymezSyncing}
-                className="bg-violet-700 hover:bg-violet-800 text-white flex-shrink-0"
-              >
-                <RefreshCw className="w-4 h-4 mr-1.5" /> Importar
-              </Button>
-            </div>
+            {tokenVinculado ? (
+              /* Ya hay una empresa vinculada: se importa sola, sin pedir el codigo */
+              <div className="rounded-xl border border-violet-300 bg-white p-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-violet-900">
+                        Sincronizado con {empresaVinculada ?? 'PyMEZ 360'}
+                      </p>
+                      <p className="text-xs text-violet-700 mt-0.5">
+                        La facturación se importa sola al elegir el período. No hace falta volver a pegar el código.
+                      </p>
+                      <p className="text-[11px] text-violet-500 font-mono mt-1">Código {tokenVinculado}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      onClick={() => handlePymezImport()}
+                      loading={pymezSyncing}
+                      disabled={pymezSyncing}
+                      className="bg-violet-700 hover:bg-violet-800 text-white"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1.5" /> Actualizar
+                    </Button>
+                    <Button
+                      onClick={desvincularEmpresa}
+                      disabled={pymezSyncing}
+                      className="bg-white border border-violet-300 text-violet-700 hover:bg-violet-50"
+                    >
+                      Cambiar empresa
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Primera vez: se pega el codigo una sola vez y queda guardado */
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pymezToken}
+                  onChange={e => setPymezToken(e.target.value.toUpperCase())}
+                  placeholder="Código PyMEZ 360 (ej: ABC123)"
+                  className="flex-1 px-3 py-2 border border-violet-300 bg-white rounded-lg text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  maxLength={8}
+                />
+                <Button
+                  onClick={() => handlePymezImport()}
+                  loading={pymezSyncing}
+                  disabled={!pymezToken.trim() || pymezSyncing}
+                  className="bg-violet-700 hover:bg-violet-800 text-white flex-shrink-0"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1.5" /> Vincular e importar
+                </Button>
+              </div>
+            )}
 
             {pymezError && (
               <p className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
