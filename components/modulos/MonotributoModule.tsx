@@ -188,16 +188,28 @@ export function MonotributoModule() {
         obra_social_component: quota.obraSocialComponent, total_amount: quota.total,
         surcharge: mora.surcharge, status: 'paid', paid_at: new Date().toISOString(),
       }
-      if (existing.data) await db.from('monotributo_payments').update(payPayload).eq('id', existing.data.id)
-      else               await db.from('monotributo_payments').insert(payPayload)
+      const rPago = existing.data
+        ? await db.from('monotributo_payments').update(payPayload).eq('id', existing.data.id)
+        : await db.from('monotributo_payments').insert(payPayload)
+      if (rPago.error) throw new Error(rPago.error.message)
 
-      await db.from('simulated_veps').insert({
+      // Un unico VEP por periodo: si se vuelve a pagar el mismo mes se
+      // actualiza el que ya existe. Todas las pantallas leen este registro
+      // con maybeSingle(), que falla si encuentra mas de una fila.
+      const vepPayload = {
         user_id: user.id, vep_number: generateVepNumber(), obligation_type: 'monotributo',
         concept: `Monotributo Cat. ${currentCat.category_code} — ${formatPeriod(selectedPeriod)}${mora.surcharge > 0 ? ` (+mora)` : ''}`,
         period: selectedPeriod, amount: mora.totalWithMora, due_date: due,
         payment_method: paymentMethod, status: 'paid', paid_at: new Date().toISOString(),
         comprobante_number: generateComprobanteNumber(),
-      })
+      }
+      const vepPrevio = await db.from('simulated_veps')
+        .select('id').eq('user_id', user.id)
+        .eq('obligation_type', 'monotributo').eq('period', selectedPeriod).maybeSingle()
+      const rVep = vepPrevio.data
+        ? await db.from('simulated_veps').update(vepPayload).eq('id', vepPrevio.data.id)
+        : await db.from('simulated_veps').insert(vepPayload)
+      if (rVep.error) throw new Error(rVep.error.message)
 
       await debitarPago(
         mora.totalWithMora,

@@ -111,11 +111,10 @@ export default function CargasSocialesPage() {
         status: 'pending',
         reference_id: existingReturn.id,
       }
-      if (existingVep) {
-        await db.from('simulated_veps').update(vepPayload).eq('id', existingVep.id)
-      } else {
-        await db.from('simulated_veps').insert(vepPayload)
-      }
+      const rVep = existingVep
+        ? await db.from('simulated_veps').update(vepPayload).eq('id', existingVep.id)
+        : await db.from('simulated_veps').insert(vepPayload)
+      if (rVep.error) throw new Error(rVep.error.message)
       setSuccess('VEP generado.')
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
@@ -128,8 +127,10 @@ export default function CargasSocialesPage() {
     try {
       const db = supabase as any
       const comp = generateComprobanteNumber()
-      await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', existingVep.id)
-      await db.from('social_security_returns').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', existingReturn.id)
+      const rPagoVep = await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', existingVep.id)
+      if (rPagoVep.error) throw new Error(rPagoVep.error.message)
+      const rPagoRet = await db.from('social_security_returns').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', existingReturn.id)
+      if (rPagoRet.error) throw new Error(rPagoRet.error.message)
       setSuccess(`Pago registrado. Comprobante: ${comp}`)
       await loadData()
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
