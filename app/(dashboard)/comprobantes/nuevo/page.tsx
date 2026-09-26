@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { calcularImportes } from '@/lib/fiscal-engine/comprobante'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
@@ -69,9 +70,13 @@ export default function NuevoComprobantePage() {
   const watchedItems = watch('items')
   const watchedType = watch('invoice_type')
 
-  const subtotal = watchedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0)
-  const ivaAmount = watchedType === 'A' ? subtotal * 0.21 : 0
-  const total = subtotal + ivaAmount
+  // En Factura A el precio cargado es NETO y el IVA se suma por afuera.
+  // En Factura B el precio cargado ya es FINAL: el IVA viaja adentro y hay que
+  // extraerlo, porque el responsable inscripto debe el debito fiscal igual,
+  // aunque en el comprobante no se discrimine. Antes se guardaba IVA cero y
+  // esas ventas entraban a la DDJJ sin generar debito.
+  const importeCargado = watchedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0)
+  const { subtotal, ivaAmount, total } = calcularImportes(watchedType, importeCargado)
 
   useEffect(() => {
     if (!user) return
@@ -409,12 +414,12 @@ export default function NuevoComprobantePage() {
           {/* Totals */}
           <div className="mt-6 border-t border-slate-200 pt-4 space-y-2 text-sm">
             <div className="flex justify-between text-slate-600">
-              <span>Subtotal</span>
+              <span>{watchedType === 'B' ? 'Neto gravado' : 'Subtotal'}</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            {watchedType === 'A' && (
+            {(watchedType === 'A' || watchedType === 'B') && (
               <div className="flex justify-between text-slate-600">
-                <span>IVA (21%)</span>
+                <span>{watchedType === 'B' ? 'IVA (21%) contenido — no se discrimina en el comprobante' : 'IVA (21%)'}</span>
                 <span>{formatCurrency(ivaAmount)}</span>
               </div>
             )}

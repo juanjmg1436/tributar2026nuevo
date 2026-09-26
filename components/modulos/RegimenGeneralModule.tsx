@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { rangoDelPeriodo } from '@/lib/fiscal-engine/comprobante'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -204,13 +205,27 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
     const db = supabase as any
     const prevP = previousPeriod(ivaPeriod)
 
+    // invoices NO tiene columna period: guarda issue_date. Filtrar por period
+    // hacia fallar la consulta entera y la DDJJ mostraba cero ventas siempre.
+    const { desde, hasta } = rangoDelPeriodo(ivaPeriod)
+
     const [invRes, purRes, retRes, vepRes, prevRetRes] = await Promise.all([
-      db.from('invoices').select('*').eq('user_id', user!.id).eq('period', ivaPeriod).neq('status', 'cancelled'),
+      db.from('invoices').select('*').eq('user_id', user!.id)
+        .gte('issue_date', desde).lte('issue_date', hasta).neq('status', 'cancelled'),
       db.from('purchases').select('*').eq('user_id', user!.id).eq('period', ivaPeriod).eq('status', 'active'),
       db.from('vat_returns').select('*').eq('user_id', user!.id).eq('period', ivaPeriod).maybeSingle(),
       db.from('simulated_veps').select('*').eq('user_id', user!.id).eq('period', ivaPeriod).eq('obligation_type', 'iva').maybeSingle(),
       db.from('vat_returns').select('credit_balance').eq('user_id', user!.id).eq('period', prevP).maybeSingle(),
     ])
+
+    // El cliente de Supabase no lanza excepcion: devuelve el error adentro.
+    // Sin mirarlo, una consulta rota se ve igual que un periodo vacio.
+    const falla = [invRes, purRes, retRes, vepRes, prevRetRes].find(r => r?.error)
+    if (falla) {
+      setIvaError(`No se pudieron leer los datos del periodo: ${falla.error.message}`)
+      setIvaLoading(false)
+      return
+    }
 
     setInvoices(invRes.data || [])
     setPurchases(purRes.data || [])
@@ -348,8 +363,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
         status: ivaCalc.hasCredit ? 'credit' : 'submitted',
         submitted_at: new Date().toISOString(), notes: ivaNotes || null,
       }
-      if (ivaReturn) await db.from('vat_returns').update(payload).eq('id', ivaReturn.id)
-      else           await db.from('vat_returns').insert(payload)
+      const { error } = ivaReturn
+        ? await db.from('vat_returns').update(payload).eq('id', ivaReturn.id)
+        : await db.from('vat_returns').insert(payload)
+      if (error) throw new Error(error.message)
       setIvaSuccess('DDJJ IVA presentada (simulación).')
       await loadIva()
     } catch (e) { setIvaError(e instanceof Error ? e.message : 'Error') }
@@ -367,8 +384,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
         amount: ivaTotalWithMora, due_date: ivaDueDate, payment_method: ivaPayMethod,
         status: 'pending', reference_id: ivaReturn.id,
       }
-      if (ivaVep) await db.from('simulated_veps').update(payload).eq('id', ivaVep.id)
-      else        await db.from('simulated_veps').insert(payload)
+      const { error } = ivaVep
+        ? await db.from('simulated_veps').update(payload).eq('id', ivaVep.id)
+        : await db.from('simulated_veps').insert(payload)
+      if (error) throw new Error(error.message)
       setIvaSuccess('VEP generado.')
       await loadIva()
     } catch (e) { setIvaError(e instanceof Error ? e.message : 'Error') }
@@ -381,8 +400,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
     try {
       const db = supabase as any
       const comp = generateComprobanteNumber()
-      await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', ivaVep.id)
-      await db.from('vat_returns').update({ status: 'paid' }).eq('id', ivaReturn.id)
+      const rVep = await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', ivaVep.id)
+      if (rVep.error) throw new Error(rVep.error.message)
+      const rRet = await db.from('vat_returns').update({ status: 'paid' }).eq('id', ivaReturn.id)
+      if (rRet.error) throw new Error(rRet.error.message)
       setIvaSuccess(`Pago IVA. Comprobante: ${comp}`)
       await loadIva()
     } catch (e) { setIvaError(e instanceof Error ? e.message : 'Error') }
@@ -407,8 +428,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
         previous_credit: ganCalc.previousCredit, net_payable: ganCalc.netPayable,
         status: 'submitted', submitted_at: new Date().toISOString(), notes: ganForm.notes || null,
       }
-      if (ganReturn) await db.from('income_tax_returns').update(payload).eq('id', ganReturn.id)
-      else           await db.from('income_tax_returns').insert(payload)
+      const { error } = ganReturn
+        ? await db.from('income_tax_returns').update(payload).eq('id', ganReturn.id)
+        : await db.from('income_tax_returns').insert(payload)
+      if (error) throw new Error(error.message)
       setGanSuccess(`DDJJ Ganancias ${fiscalYear} presentada (simulación).`)
       await loadGanancias()
     } catch (e) { setGanError(e instanceof Error ? e.message : 'Error') }
@@ -427,8 +450,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
         amount: totalGan, due_date: ganDueDate, payment_method: ganPayMethod,
         status: 'pending', reference_id: ganReturn.id,
       }
-      if (ganVep) await db.from('simulated_veps').update(payload).eq('id', ganVep.id)
-      else        await db.from('simulated_veps').insert(payload)
+      const { error } = ganVep
+        ? await db.from('simulated_veps').update(payload).eq('id', ganVep.id)
+        : await db.from('simulated_veps').insert(payload)
+      if (error) throw new Error(error.message)
       setGanSuccess('VEP Ganancias generado.')
       await loadGanancias()
     } catch (e) { setGanError(e instanceof Error ? e.message : 'Error') }
@@ -441,8 +466,10 @@ export function RegimenGeneralModule({ defaultTab = 'iva' }: Props) {
     try {
       const db = supabase as any
       const comp = generateComprobanteNumber()
-      await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', ganVep.id)
-      await db.from('income_tax_returns').update({ status: 'paid' }).eq('id', ganReturn.id)
+      const gVep = await db.from('simulated_veps').update({ status: 'paid', paid_at: new Date().toISOString(), comprobante_number: comp }).eq('id', ganVep.id)
+      if (gVep.error) throw new Error(gVep.error.message)
+      const gRet = await db.from('income_tax_returns').update({ status: 'paid' }).eq('id', ganReturn.id)
+      if (gRet.error) throw new Error(gRet.error.message)
       setGanSuccess(`Pago Ganancias. Comprobante: ${comp}`)
       await loadGanancias()
     } catch (e) { setGanError(e instanceof Error ? e.message : 'Error') }
