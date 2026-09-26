@@ -69,13 +69,20 @@ export async function GET(req: Request) {
   if (action === 'link') {
     const company = searchParams.get('company')?.trim() ?? 'PyMEZ 360'
 
-    await (db as any)
+    // Supabase no lanza excepcion: si no se mira el error, este endpoint le
+    // contesta "habilitado" a PyMEZ 360 con la vinculacion sin guardar, y el
+    // punto de venta queda roto sin que nadie se entere.
+    const { error } = await (db as any)
       .from('points_of_sale')
       .update({
         pymez_linked_at:    new Date().toISOString(),
         pymez_company_name: company,
       })
       .eq('id', pos.id)
+
+    if (error) {
+      return json({ error: `No se pudo guardar la vinculación: ${error.message}` }, { status: 500 })
+    }
 
     return json({
       ok:         true,
@@ -87,10 +94,14 @@ export async function GET(req: Request) {
 
   // ── unlink: desvincula PyMEZ 360 ─────────────────────────────────────────
   if (action === 'unlink') {
-    await (db as any)
+    const { error } = await (db as any)
       .from('points_of_sale')
       .update({ pymez_linked_at: null, pymez_company_name: null })
       .eq('id', pos.id)
+
+    if (error) {
+      return json({ error: `No se pudo desvincular: ${error.message}` }, { status: 500 })
+    }
 
     return json({ ok: true, message: 'Vinculación eliminada.' })
   }
